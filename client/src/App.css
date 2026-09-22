@@ -1,0 +1,98 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f1117;
+  color: #ffffff;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.header {
+  padding: 20px 30px;
+  border-bottom: 1px solid #2a2f3a;
+  background: #151922;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: #8f98a8;
+}
+
+main {
+  padding: 30px;
+}
+
+.scanner {
+  background: #151922;
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  padding: 24px;
+}
+
+.scanner h2 {
+  margin-top: 0;
+}
+
+.scanner > p {
+  color: #8f98a8;
+}
+
+.stock-table {
+  margin-top: 25px;
+  padding: 30px;
+  border: 1px dashed #394150;
+  border-radius: 8px;
+  text-align: center;
+  color: #8f98a8;
+}
+
+.stock-table {
+  margin-top: 25px;
+  overflow-x: auto;
+}
+
+.stock-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stock-table th,
+.stock-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #2a2f3a;
+}
+
+.stock-table th {
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #8f98a8;
+}
+
+.stock-table td {
+  font-size: 16px;
+}
+
+.stock-table tbody tr:hover {
+  background: #1c212c;
+}
+
+.big-mover {
+  font-weight: bold;
+}
+
+.big-mover td {
+  border-top: 1px solid #4a5364;
+  border-bottom: 1px solid #4a5364;
+}

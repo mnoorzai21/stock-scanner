@@ -1,0 +1,84 @@
+import "./App.css";
+
+function App() {
+  const stocks = [
+    {
+      symbol: "ABCD",
+      price: 4.25,
+      change: 32.5,
+      rvol: 7.8,
+      float: 12.4,
+    },
+    {
+      symbol: "XYZ",
+      price: 8.72,
+      change: 105.3,
+      rvol: 11.2,
+      float: 6.7,
+    },
+    {
+      symbol: "TEST",
+      price: 15.4,
+      change: 24.8,
+      rvol: 5.9,
+      float: 18.2,
+    },
+  ];
+
+  const filteredStocks = stocks.filter((stock) => {
+    return (
+      stock.price >= 2 &&
+      stock.price <= 20 &&
+      stock.change >= 20 &&
+      stock.rvol > 5 &&
+      stock.float < 20
+    );
+  });
+
+  return (
+    <div className="app">
+      <header className="header">
+        <h1>Stock Scanner</h1>
+        <p>Real-Time Momentum Scanner</p>
+      </header>
+
+      <main>
+        <section className="scanner">
+          <h2>Scanner Results</h2>
+
+          <p>Stocks: $2 - $20 | Gain: 20%+ | RVOL: 5+ | Float: Under 20M</p>
+
+          <div className="stock-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Price</th>
+                  <th>Change</th>
+                  <th>RVOL</th>
+                  <th>Float</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredStocks.map((stock) => (
+                  <tr
+                    key={stock.symbol}
+                    className={stock.change >= 100 ? "big-mover" : ""}>
+                    <td>{stock.symbol}</td>
+                    <td>${stock.price.toFixed(2)}</td>
+                    <td>+{stock.change}%</td>
+                    <td>{stock.rvol}</td>
+                    <td>{stock.float}M</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+export default App;
