@@ -30,7 +30,8 @@ function App() {
       stock.price <= 20 &&
       stock.change >= 20 &&
       stock.rvol > 5 &&
-      stock.float < 20
+      stock.float < 20 &&
+      stock.hasNews
     );
   });
 
@@ -40,7 +41,7 @@ function App() {
     }
 
     filteredStocks.forEach((stock) => {
-      if (stock.change >= 100 && !alertedStocks.current.has(stock.symbol)) {
+      if (stock.change >= 30 && !alertedStocks.current.has(stock.symbol)) {
         playAlertSound();
         alertedStocks.current.add(stock.symbol);
       }

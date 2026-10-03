@@ -19,6 +19,7 @@ app.get("/api/stocks", (req, res) => {
       change: 32.5,
       rvol: 7.8,
       float: 12.4,
+      hasNews: true,
     },
     {
       symbol: "XYZ",
@@ -26,6 +27,7 @@ app.get("/api/stocks", (req, res) => {
       change: 105.3,
       rvol: 11.2,
       float: 6.7,
+      hasNews: false,
     },
   ];
 
