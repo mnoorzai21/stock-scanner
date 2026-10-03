@@ -3,6 +3,16 @@ import "./App.css";
 
 function App() {
   const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [stocks, setStocks] = useState([]);
+
+  useEffect(() => {
+    fetch("http://localhost:3000/api/stocks")
+      .then((response) => response.json())
+      .then((data) => {
+        setStocks(data);
+      });
+  }, []);
+
   const alertedStocks = useRef(new Set());
 
   const playAlertSound = () => {
@@ -13,30 +23,6 @@ function App() {
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.3);
   };
-
-  const stocks = [
-    {
-      symbol: "ABCD",
-      price: 4.25,
-      change: 32.5,
-      rvol: 7.8,
-      float: 12.4,
-    },
-    {
-      symbol: "XYZ",
-      price: 8.72,
-      change: 105.3,
-      rvol: 11.2,
-      float: 6.7,
-    },
-    {
-      symbol: "TEST",
-      price: 15.4,
-      change: 24.8,
-      rvol: 5.9,
-      float: 18.2,
-    },
-  ];
 
   const filteredStocks = stocks.filter((stock) => {
     return (
