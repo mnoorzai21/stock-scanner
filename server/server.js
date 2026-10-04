@@ -37,6 +37,41 @@ app.get("/api/test-alpaca", async (req, res) => {
   }
 });
 
+app.get("/api/test-snapshot", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://data.alpaca.markets/v2/stocks/AAPL/snapshot",
+      {
+        headers: {
+          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    const currentPrice = data.latestTrade.p;
+    const previousClose = data.prevDailyBar.c;
+
+    const percentChange =
+      ((currentPrice - previousClose) / previousClose) * 100;
+
+    res.json({
+      symbol: data.symbol,
+      currentPrice: currentPrice,
+      previousClose: previousClose,
+      percentChange: Number(percentChange.toFixed(2)),
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to get Alpaca snapshot data",
+    });
+  }
+});
+
 app.get("/api/stocks", (req, res) => {
   const stocks = [
     {
