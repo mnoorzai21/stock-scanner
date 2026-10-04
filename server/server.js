@@ -123,10 +123,45 @@ app.get("/api/test-volume", async (req, res) => {
   }
 });
 
+function isWeekend(date) {
+  const day = date.getUTCDay();
+
+  return day === 0 || day === 6;
+}
+
+function getPreviousWeekday(date) {
+  const previousDate = new Date(date);
+
+  previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+
+  while (isWeekend(previousDate)) {
+    previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+  }
+
+  return previousDate;
+}
+
 app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
-    const historicalDates = ["2026-09-29", "2026-09-30", "2026-10-01"];
+
+    const today = new Date();
+
+    const previousWeekday = getPreviousWeekday(today);
+
+    const testDate = previousWeekday.toISOString().split("T")[0];
+
+    const firstHistoricalDay = getPreviousWeekday(previousWeekday);
+
+    const secondHistoricalDay = getPreviousWeekday(firstHistoricalDay);
+
+    const thirdHistoricalDay = getPreviousWeekday(secondHistoricalDay);
+
+    const historicalDates = [
+      thirdHistoricalDay.toISOString().split("T")[0],
+      secondHistoricalDay.toISOString().split("T")[0],
+      firstHistoricalDay.toISOString().split("T")[0],
+    ];
 
     const historicalVolumes = [];
 
@@ -164,7 +199,7 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
     console.log("Average:", Math.round(averageHistoricalVolume));
 
     const response = await fetch(
-      `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=2026-10-02T13:30:00Z&end=2026-10-02T14:00:00Z&feed=iex`,
+      `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testDate}T13:30:00Z&end=2026-10-02T14:00:00Z&feed=iex`,
       {
         headers: {
           "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
