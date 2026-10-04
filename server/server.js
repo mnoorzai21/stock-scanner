@@ -13,6 +13,30 @@ app.get("/", (req, res) => {
   res.send("Stock Scanner API is running");
 });
 
+app.get("/api/test-alpaca", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://data.alpaca.markets/v2/stocks/AAPL/trades/latest",
+      {
+        headers: {
+          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to get Alpaca market data",
+    });
+  }
+});
+
 app.get("/api/stocks", (req, res) => {
   const stocks = [
     {
