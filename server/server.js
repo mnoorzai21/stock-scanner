@@ -128,6 +128,7 @@ app.get("/api/test-intraday-volume", async (req, res) => {
     const historicalDates = ["2026-09-29", "2026-09-30", "2026-10-01"];
 
     const historicalVolumes = [];
+
     for (const date of historicalDates) {
       const historicalResponse = await fetch(
         `https://data.alpaca.markets/v2/stocks/AAPL/bars?timeframe=5Min&start=${date}T13:30:00Z&end=${date}T14:00:00Z&feed=iex`,
@@ -141,11 +142,28 @@ app.get("/api/test-intraday-volume", async (req, res) => {
 
       const historicalData = await historicalResponse.json();
 
-      console.log(date, historicalData.bars.length);
+      const first30Minutes = historicalData.bars.slice(0, 6);
+
+      const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
+        return total + bar.v;
+      }, 0);
+
+      historicalVolumes.push(first30MinuteVolume);
+
+      console.log(date, first30MinuteVolume);
     }
 
+    const totalHistoricalVolume = historicalVolumes.reduce((total, volume) => {
+      return total + volume;
+    }, 0);
+
+    const averageHistoricalVolume =
+      totalHistoricalVolume / historicalVolumes.length;
+
+    console.log("Average:", Math.round(averageHistoricalVolume));
+
     const response = await fetch(
-      "https://data.alpaca.markets/v2/stocks/AAPL/bars?timeframe=5Min&start=2026-10-01T13:30:00Z&end=2026-10-01T14:00:00Z&feed=iex",
+      "https://data.alpaca.markets/v2/stocks/AAPL/bars?timeframe=5Min&start=2026-10-02T13:30:00Z&end=2026-10-02T14:00:00Z&feed=iex",
       {
         headers: {
           "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
@@ -162,10 +180,14 @@ app.get("/api/test-intraday-volume", async (req, res) => {
       return total + bar.v;
     }, 0);
 
+    const rvol = first30MinuteVolume / averageHistoricalVolume;
+
     res.json({
       symbol: data.symbol,
       numberOfBars: first30Minutes.length,
       first30MinuteVolume: first30MinuteVolume,
+      averageHistoricalVolume: Math.round(averageHistoricalVolume),
+      rvol: Number(rvol.toFixed(2)),
     });
   } catch (error) {
     console.error(error);
