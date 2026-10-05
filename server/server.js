@@ -143,6 +143,33 @@ function getMarketOpenUtc(date) {
   };
 }
 
+async function getFloat(symbol) {
+  const response = await fetch(
+    `https://app.sentisense.ai/api/v1/stocks/float?ticker=${symbol}`,
+    {
+      headers: {
+        "X-SentiSense-API-Key": process.env.SENTISENSE_API_KEY,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+
+  if (data.freeFloat == null) {
+    return null;
+  }
+
+  return {
+    symbol: data.ticker,
+    float: data.freeFloat,
+    floatMillions: Number((data.freeFloat / 1_000_000).toFixed(2)),
+  };
+}
+
 async function calculateRvol(symbol) {
   const today = new Date();
 
@@ -621,13 +648,44 @@ app.get("/api/test-scanner", async (req, res) => {
       return stock.rvol > 5;
     });
 
-    res.json(highRvolStocks);
+    const stocksWithFloat = [];
+
+    for (const stock of highRvolStocks) {
+      const floatData = await getFloat(stock.symbol);
+
+      if (floatData) {
+        stocksWithFloat.push({
+          ...stock,
+          float: floatData.float,
+          floatMillions: floatData.floatMillions,
+        });
+      }
+    }
+
+    const lowFloatStocks = stocksWithFloat.filter((stock) => {
+      return stock.float < 20_000_000;
+    });
+
+    res.json(lowFloatStocks);
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
       error: "Failed to run stock scanner",
     });
+  }
+});
+
+app.get("/api/test-float/:symbol", async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+
+  try {
+    const floatData = await getFloat(symbol);
+
+    res.json(floatData);
+  } catch (error) {
+    console.error("Float test error:", error);
+    res.status(500).json({ error: "Failed to fetch float data" });
   }
 });
 
