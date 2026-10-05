@@ -191,6 +191,10 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     const testDate = lastFourTradingDates[3];
 
+    const testMarketWindow = getMarketOpenUtc(testDate);
+
+    console.log("Test market window:", testMarketWindow);
+
     const calendarHistoricalDates = lastFourTradingDates.slice(0, 3);
 
     const historicalDates = calendarHistoricalDates;
@@ -267,7 +271,7 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
     console.log("Average:", Math.round(averageHistoricalVolume));
 
     const response = await fetch(
-      `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testDate}T13:30:00Z&end=2026-10-02T14:00:00Z&feed=iex`,
+      `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testMarketWindow.start}&end=${testMarketWindow.end}&feed=iex`,
       {
         headers: {
           "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
@@ -352,6 +356,7 @@ app.get("/api/test-calendar", async (req, res) => {
     console.log("Calendar historical dates:", calendarHistoricalDates);
 
     const historicalDates = lastFourTradingDates.slice(0, 3);
+
     const testDate = lastFourTradingDates[3];
 
     res.json(lastFourTradingDates);
