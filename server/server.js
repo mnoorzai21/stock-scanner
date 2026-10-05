@@ -224,6 +224,12 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
       const historicalData = await historicalResponse.json();
 
+      if (!historicalData.bars || historicalData.bars.length === 0) {
+        return res.status(404).json({
+          error: `No historical market data found for symbol ${symbol}`,
+        });
+      }
+
       const first30Minutes = historicalData.bars.slice(0, 6);
 
       const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
@@ -251,6 +257,12 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
     );
 
     const data = await response.json();
+
+    if (!data.bars || data.bars.length === 0) {
+      return res.status(404).json({
+        error: `No market data found for symbol ${symbol}`,
+      });
+    }
 
     const first30Minutes = data.bars.slice(0, 6);
 
