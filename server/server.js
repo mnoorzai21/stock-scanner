@@ -364,9 +364,79 @@ app.get("/api/test-calendar", async (req, res) => {
 
 app.get("/api/test-scanner", async (req, res) => {
   try {
-    res.json({
-      message: "Automatic stock scanner test endpoint is working",
+    const assetsResponse = await fetch(
+      "https://paper-api.alpaca.markets/v2/assets?status=active&asset_class=us_equity",
+      {
+        headers: {
+          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+        },
+      },
+    );
+
+    const assetsData = await assetsResponse.json();
+
+    const tradableAssets = assetsData.filter((asset) => {
+      return asset.tradable === true;
     });
+
+    const symbols = tradableAssets.map((asset) => {
+      return asset.symbol;
+    });
+
+    const batchSize = 200;
+
+    const symbolBatches = [];
+
+    for (let i = 0; i < symbols.length; i += batchSize) {
+      symbolBatches.push(symbols.slice(i, i + batchSize));
+    }
+
+    const allSnapshots = {};
+
+    for (const batch of symbolBatches.slice(0, 10)) {
+      const symbolsQuery = batch.join(",");
+
+      const snapshotsResponse = await fetch(
+        `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsQuery}&feed=iex`,
+        {
+          headers: {
+            "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+            "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+          },
+        },
+      );
+
+      const snapshotsData = await snapshotsResponse.json();
+
+      Object.assign(allSnapshots, snapshotsData);
+    }
+
+    const stocks = Object.entries(allSnapshots).map(([symbol, snapshot]) => {
+      const currentPrice = snapshot.latestTrade?.p;
+      const previousClose = snapshot.prevDailyBar?.c;
+
+      return {
+        symbol: symbol,
+        price: currentPrice,
+        previousClose: previousClose,
+        change:
+          currentPrice && previousClose
+            ? Number(
+                (
+                  ((currentPrice - previousClose) / previousClose) *
+                  100
+                ).toFixed(2),
+              )
+            : null,
+      };
+    });
+
+    const priceFilteredStocks = stocks.filter((stock) => {
+      return stock.price >= 2 && stock.price <= 20 && stock.change >= 20;
+    });
+
+    res.json(priceFilteredStocks);
   } catch (error) {
     console.error(error);
 
