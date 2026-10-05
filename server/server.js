@@ -123,6 +123,67 @@ app.get("/api/test-volume", async (req, res) => {
   }
 });
 
+async function calculateRvol(symbol) {
+  const today = new Date();
+
+  const calendarStartDate = new Date(today);
+  calendarStartDate.setDate(calendarStartDate.getDate() - 35);
+
+  const calendarStart = calendarStartDate.toISOString().split("T")[0];
+
+  const marketDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(today);
+
+  const calendarEnd = marketDate;
+
+  const marketTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(today);
+
+  const first30MinutesComplete = marketTime >= "10:00";
+
+  const calendarResponse = await fetch(
+    `https://paper-api.alpaca.markets/v2/calendar?start=${calendarStart}&end=${calendarEnd}`,
+    {
+      headers: {
+        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+      },
+    },
+  );
+
+  const calendarData = await calendarResponse.json();
+
+  const tradingDates = calendarData.map((day) => {
+    return day.date;
+  });
+
+  const todayMarketDay = calendarData.find((day) => {
+    return day.date === marketDate;
+  });
+
+  const canUseToday = todayMarketDay !== undefined && first30MinutesComplete;
+
+  const completedTradingDates = tradingDates.filter((date) => {
+    if (date < marketDate) {
+      return true;
+    }
+
+    if (date === marketDate && canUseToday) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
 app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
@@ -432,11 +493,19 @@ app.get("/api/test-scanner", async (req, res) => {
       };
     });
 
-    const priceFilteredStocks = stocks.filter((stock) => {
+    const momentumCandidates = stocks.filter((stock) => {
       return stock.price >= 2 && stock.price <= 20 && stock.change >= 20;
     });
 
-    res.json(priceFilteredStocks);
+    const stocksWithRvol = [];
+
+    for (const stock of momentumCandidates) {
+      const symbol = stock.symbol;
+
+      console.log("RVOL candidate:", stock.symbol);
+    }
+
+    res.json(momentumCandidates);
   } catch (error) {
     console.error(error);
 
