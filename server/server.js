@@ -197,7 +197,25 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     const historicalVolumes = [];
 
+    function getMarketOpenUtc(date) {
+      const noonUtc = new Date(`${date}T12:00:00Z`);
+
+      const timeZoneName = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        timeZoneName: "shortOffset",
+      })
+        .formatToParts(noonUtc)
+        .find((part) => part.type === "timeZoneName").value;
+
+      const offsetHours = Number(timeZoneName.replace("GMT", ""));
+      console.log("Offset:", offsetHours);
+
+      return timeZoneName;
+    }
+
     for (const date of historicalDates) {
+      getMarketOpenUtc(date);
+
       const historicalResponse = await fetch(
         `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${date}T13:30:00Z&end=${date}T14:00:00Z&feed=iex`,
         {
