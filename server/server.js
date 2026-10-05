@@ -229,7 +229,7 @@ async function calculateRvol(symbol) {
     const historicalData = await historicalResponse.json();
 
     if (!historicalData.bars || historicalData.bars.length === 0) {
-      return null;
+      continue;
     }
 
     const first30Minutes = historicalData.bars.filter((bar) => {
@@ -241,6 +241,10 @@ async function calculateRvol(symbol) {
     }, 0);
 
     historicalVolumes.push(first30MinuteVolume);
+  }
+
+  if (historicalVolumes.length === 0) {
+    return null;
   }
 
   const totalHistoricalVolume = historicalVolumes.reduce((total, volume) => {
@@ -603,10 +607,21 @@ app.get("/api/test-scanner", async (req, res) => {
     for (const stock of momentumCandidates) {
       const symbol = stock.symbol;
 
-      console.log("RVOL candidate:", stock.symbol);
+      const rvolData = await calculateRvol(symbol);
+
+      if (rvolData) {
+        stocksWithRvol.push({
+          ...stock,
+          rvol: rvolData.rvol,
+        });
+      }
     }
 
-    res.json(momentumCandidates);
+    const highRvolStocks = stocksWithRvol.filter((stock) => {
+      return stock.rvol > 5;
+    });
+
+    res.json(highRvolStocks);
   } catch (error) {
     console.error(error);
 
