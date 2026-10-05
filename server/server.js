@@ -136,8 +136,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       day: "2-digit",
     }).format(today);
 
-    console.log("Market date:", marketDate);
-
     const marketTime = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York",
       hour: "2-digit",
@@ -145,11 +143,7 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       hour12: false,
     }).format(today);
 
-    console.log("Market time:", marketTime);
-
     const first30MinutesComplete = marketTime >= "10:00";
-
-    console.log("First 30 minutes complete:", first30MinutesComplete);
 
     const todayDate = today.toISOString().split("T")[0];
 
@@ -168,10 +162,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
     const todayMarketDay = calendarData.find((day) => day.date === marketDate);
 
     const canUseToday = todayMarketDay !== undefined && first30MinutesComplete;
-
-    console.log("Can use today:", canUseToday);
-
-    console.log("Today market day:", todayMarketDay);
 
     const tradingDates = calendarData.map((day) => day.date);
 
@@ -193,8 +183,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     const testMarketWindow = getMarketOpenUtc(testDate);
 
-    console.log("Test market window:", testMarketWindow);
-
     const calendarHistoricalDates = lastFourTradingDates.slice(0, 3);
 
     const historicalDates = calendarHistoricalDates;
@@ -212,19 +200,8 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
         .find((part) => part.type === "timeZoneName").value;
 
       const offsetHours = Number(timeZoneName.replace("GMT", ""));
-
       const marketOpenUtcHour = 9 - offsetHours;
-
       const marketEndUtcHour = marketOpenUtcHour + 1;
-
-      console.log(
-        "Offset:",
-        offsetHours,
-        "UTC open hour:",
-        marketOpenUtcHour,
-        "UTC end hour:",
-        marketEndUtcHour,
-      );
 
       return {
         start: `${date}T${String(marketOpenUtcHour).padStart(2, "0")}:30:00Z`,
@@ -234,7 +211,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     for (const date of historicalDates) {
       const marketWindow = getMarketOpenUtc(date);
-      console.log("Market window:", marketWindow);
 
       const historicalResponse = await fetch(
         `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${marketWindow.start}&end=${marketWindow.end}&feed=iex`,
@@ -248,8 +224,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
       const historicalData = await historicalResponse.json();
 
-      console.log("Historical response:", historicalData);
-
       const first30Minutes = historicalData.bars.slice(0, 6);
 
       const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
@@ -257,8 +231,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       }, 0);
 
       historicalVolumes.push(first30MinuteVolume);
-
-      console.log(date, first30MinuteVolume);
     }
 
     const totalHistoricalVolume = historicalVolumes.reduce((total, volume) => {
@@ -267,8 +239,6 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     const averageHistoricalVolume =
       totalHistoricalVolume / historicalVolumes.length;
-
-    console.log("Average:", Math.round(averageHistoricalVolume));
 
     const response = await fetch(
       `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testMarketWindow.start}&end=${testMarketWindow.end}&feed=iex`,
