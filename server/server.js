@@ -230,7 +230,9 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
         });
       }
 
-      const first30Minutes = historicalData.bars.slice(0, 6);
+      const first30Minutes = historicalData.bars.filter((bar) => {
+        return bar.t >= marketWindow.start && bar.t < marketWindow.end;
+      });
 
       const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
         return total + bar.v;
@@ -264,7 +266,9 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       });
     }
 
-    const first30Minutes = data.bars.slice(0, 6);
+    const first30Minutes = data.bars.filter((bar) => {
+      return bar.t >= testMarketWindow.start && bar.t < testMarketWindow.end;
+    });
 
     const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
       return total + bar.v;
