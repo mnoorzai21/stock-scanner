@@ -123,6 +123,26 @@ app.get("/api/test-volume", async (req, res) => {
   }
 });
 
+function getMarketOpenUtc(date) {
+  const noonUtc = new Date(`${date}T12:00:00Z`);
+
+  const timeZoneName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    timeZoneName: "shortOffset",
+  })
+    .formatToParts(noonUtc)
+    .find((part) => part.type === "timeZoneName").value;
+
+  const offsetHours = Number(timeZoneName.replace("GMT", ""));
+  const marketOpenUtcHour = 9 - offsetHours;
+  const marketEndUtcHour = marketOpenUtcHour + 1;
+
+  return {
+    start: `${date}T${String(marketOpenUtcHour).padStart(2, "0")}:30:00Z`,
+    end: `${date}T${String(marketEndUtcHour).padStart(2, "0")}:00:00Z`,
+  };
+}
+
 async function calculateRvol(symbol) {
   const today = new Date();
 
@@ -182,6 +202,87 @@ async function calculateRvol(symbol) {
 
     return false;
   });
+
+  const lastTwentyOneTradingDates = completedTradingDates.slice(-21);
+
+  const testDate = lastTwentyOneTradingDates[20];
+
+  const testMarketWindow = getMarketOpenUtc(testDate);
+
+  const historicalDates = lastTwentyOneTradingDates.slice(0, 20);
+
+  const historicalVolumes = [];
+
+  for (const date of historicalDates) {
+    const marketWindow = getMarketOpenUtc(date);
+
+    const historicalResponse = await fetch(
+      `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${marketWindow.start}&end=${marketWindow.end}&feed=iex`,
+      {
+        headers: {
+          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+        },
+      },
+    );
+
+    const historicalData = await historicalResponse.json();
+
+    if (!historicalData.bars || historicalData.bars.length === 0) {
+      return null;
+    }
+
+    const first30Minutes = historicalData.bars.filter((bar) => {
+      return bar.t >= marketWindow.start && bar.t < marketWindow.end;
+    });
+
+    const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
+      return total + bar.v;
+    }, 0);
+
+    historicalVolumes.push(first30MinuteVolume);
+  }
+
+  const totalHistoricalVolume = historicalVolumes.reduce((total, volume) => {
+    return total + volume;
+  }, 0);
+
+  const averageHistoricalVolume =
+    totalHistoricalVolume / historicalVolumes.length;
+
+  const response = await fetch(
+    `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testMarketWindow.start}&end=${testMarketWindow.end}&feed=iex`,
+    {
+      headers: {
+        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!data.bars || data.bars.length === 0) {
+    return null;
+  }
+
+  const first30Minutes = data.bars.filter((bar) => {
+    return bar.t >= testMarketWindow.start && bar.t < testMarketWindow.end;
+  });
+
+  const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
+    return total + bar.v;
+  }, 0);
+
+  const rvol = first30MinuteVolume / averageHistoricalVolume;
+
+  return {
+    symbol,
+    numberOfBars: first30Minutes.length,
+    first30MinuteVolume,
+    averageHistoricalVolume: Math.round(averageHistoricalVolume),
+    rvol: Number(rvol.toFixed(2)),
+  };
 }
 
 app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
