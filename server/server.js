@@ -208,16 +208,32 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
         .find((part) => part.type === "timeZoneName").value;
 
       const offsetHours = Number(timeZoneName.replace("GMT", ""));
-      console.log("Offset:", offsetHours);
 
-      return timeZoneName;
+      const marketOpenUtcHour = 9 - offsetHours;
+
+      const marketEndUtcHour = marketOpenUtcHour + 1;
+
+      console.log(
+        "Offset:",
+        offsetHours,
+        "UTC open hour:",
+        marketOpenUtcHour,
+        "UTC end hour:",
+        marketEndUtcHour,
+      );
+
+      return {
+        start: `${date}T${String(marketOpenUtcHour).padStart(2, "0")}:30:00Z`,
+        end: `${date}T${String(marketEndUtcHour).padStart(2, "0")}:00:00Z`,
+      };
     }
 
     for (const date of historicalDates) {
-      getMarketOpenUtc(date);
+      const marketWindow = getMarketOpenUtc(date);
+      console.log("Market window:", marketWindow);
 
       const historicalResponse = await fetch(
-        `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${date}T13:30:00Z&end=${date}T14:00:00Z&feed=iex`,
+        `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${marketWindow.start}&end=${marketWindow.end}&feed=iex`,
         {
           headers: {
             "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
@@ -227,6 +243,8 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       );
 
       const historicalData = await historicalResponse.json();
+
+      console.log("Historical response:", historicalData);
 
       const first30Minutes = historicalData.bars.slice(0, 6);
 
