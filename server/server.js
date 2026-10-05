@@ -138,6 +138,19 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     console.log("Market date:", marketDate);
 
+    const marketTime = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(today);
+
+    console.log("Market time:", marketTime);
+
+    const first30MinutesComplete = marketTime >= "10:00";
+
+    console.log("First 30 minutes complete:", first30MinutesComplete);
+
     const todayDate = today.toISOString().split("T")[0];
 
     const calendarResponse = await fetch(
@@ -154,13 +167,25 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     const todayMarketDay = calendarData.find((day) => day.date === marketDate);
 
+    const canUseToday = todayMarketDay !== undefined && first30MinutesComplete;
+
+    console.log("Can use today:", canUseToday);
+
     console.log("Today market day:", todayMarketDay);
 
     const tradingDates = calendarData.map((day) => day.date);
 
-    const completedTradingDates = tradingDates.filter(
-      (date) => date <= marketDate,
-    );
+    const completedTradingDates = tradingDates.filter((date) => {
+      if (date < marketDate) {
+        return true;
+      }
+
+      if (date === marketDate && canUseToday) {
+        return true;
+      }
+
+      return false;
+    });
 
     const lastFourTradingDates = completedTradingDates.slice(-4);
 
