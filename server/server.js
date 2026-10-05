@@ -130,7 +130,7 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
     const today = new Date();
 
     const calendarStartDate = new Date(today);
-    calendarStartDate.setDate(calendarStartDate.getDate() - 14);
+    calendarStartDate.setDate(calendarStartDate.getDate() - 35);
 
     const calendarStart = calendarStartDate.toISOString().split("T")[0];
 
@@ -184,13 +184,13 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       return false;
     });
 
-    const lastFourTradingDates = completedTradingDates.slice(-4);
+    const lastTwentyOneTradingDates = completedTradingDates.slice(-21);
 
-    const testDate = lastFourTradingDates[3];
+    const testDate = lastTwentyOneTradingDates[20];
 
     const testMarketWindow = getMarketOpenUtc(testDate);
 
-    const calendarHistoricalDates = lastFourTradingDates.slice(0, 3);
+    const calendarHistoricalDates = lastTwentyOneTradingDates.slice(0, 20);
 
     const historicalDates = calendarHistoricalDates;
 
