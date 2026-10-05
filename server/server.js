@@ -123,45 +123,52 @@ app.get("/api/test-volume", async (req, res) => {
   }
 });
 
-function isWeekend(date) {
-  const day = date.getUTCDay();
-
-  return day === 0 || day === 6;
-}
-
-function getPreviousWeekday(date) {
-  const previousDate = new Date(date);
-
-  previousDate.setUTCDate(previousDate.getUTCDate() - 1);
-
-  while (isWeekend(previousDate)) {
-    previousDate.setUTCDate(previousDate.getUTCDate() - 1);
-  }
-
-  return previousDate;
-}
-
 app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
 
     const today = new Date();
 
-    const previousWeekday = getPreviousWeekday(today);
+    const marketDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(today);
 
-    const testDate = previousWeekday.toISOString().split("T")[0];
+    console.log("Market date:", marketDate);
 
-    const firstHistoricalDay = getPreviousWeekday(previousWeekday);
+    const todayDate = today.toISOString().split("T")[0];
 
-    const secondHistoricalDay = getPreviousWeekday(firstHistoricalDay);
+    const calendarResponse = await fetch(
+      "https://paper-api.alpaca.markets/v2/calendar?start=2026-09-25&end=2026-10-05",
+      {
+        headers: {
+          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+        },
+      },
+    );
 
-    const thirdHistoricalDay = getPreviousWeekday(secondHistoricalDay);
+    const calendarData = await calendarResponse.json();
 
-    const historicalDates = [
-      thirdHistoricalDay.toISOString().split("T")[0],
-      secondHistoricalDay.toISOString().split("T")[0],
-      firstHistoricalDay.toISOString().split("T")[0],
-    ];
+    const todayMarketDay = calendarData.find((day) => day.date === marketDate);
+
+    console.log("Today market day:", todayMarketDay);
+
+    const tradingDates = calendarData.map((day) => day.date);
+
+    const completedTradingDates = tradingDates.filter(
+      (date) => date <= marketDate,
+    );
+
+    const lastFourTradingDates = completedTradingDates.slice(-4);
+
+    const testDate = lastFourTradingDates[3];
+
+    const calendarHistoricalDates = lastFourTradingDates.slice(0, 3);
+
+    const historicalDates = calendarHistoricalDates;
 
     const historicalVolumes = [];
 
@@ -255,6 +262,45 @@ app.get("/api/stocks", (req, res) => {
   ];
 
   res.json(stocks);
+});
+
+app.get("/api/test-calendar", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://paper-api.alpaca.markets/v2/calendar?start=2026-09-25&end=2026-10-05",
+      {
+        headers: {
+          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    const tradingDates = data.map((day) => day.date);
+
+    const completedTradingDates = tradingDates.filter(
+      (date) => date <= "2026-10-02",
+    );
+
+    const lastFourTradingDates = completedTradingDates.slice(-4);
+
+    const calendarHistoricalDates = lastFourTradingDates.slice(0, 3);
+
+    console.log("Calendar historical dates:", calendarHistoricalDates);
+
+    const historicalDates = lastFourTradingDates.slice(0, 3);
+    const testDate = lastFourTradingDates[3];
+
+    res.json(lastFourTradingDates);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to get market calendar",
+    });
+  }
 });
 
 app.listen(PORT, () => {
