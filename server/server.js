@@ -129,12 +129,19 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
 
     const today = new Date();
 
+    const calendarStartDate = new Date(today);
+    calendarStartDate.setDate(calendarStartDate.getDate() - 14);
+
+    const calendarStart = calendarStartDate.toISOString().split("T")[0];
+
     const marketDate = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/New_York",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }).format(today);
+
+    const calendarEnd = marketDate;
 
     const marketTime = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York",
@@ -148,7 +155,7 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
     const todayDate = today.toISOString().split("T")[0];
 
     const calendarResponse = await fetch(
-      "https://paper-api.alpaca.markets/v2/calendar?start=2026-09-25&end=2026-10-05",
+      `https://paper-api.alpaca.markets/v2/calendar?start=${calendarStart}&end=${calendarEnd}`,
       {
         headers: {
           "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
