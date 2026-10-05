@@ -362,6 +362,20 @@ app.get("/api/test-calendar", async (req, res) => {
   }
 });
 
+app.get("/api/test-scanner", async (req, res) => {
+  try {
+    res.json({
+      message: "Automatic stock scanner test endpoint is working",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to run stock scanner",
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
