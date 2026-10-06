@@ -5,12 +5,15 @@ function App() {
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [stocks, setStocks] = useState([]);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     fetch("http://localhost:3000/api/test-scanner")
       .then((response) => response.json())
       .then((data) => {
         console.log("Scanner data: ", data);
         setStocks(data);
+        setLoading(false);
       });
   }, []);
 
@@ -86,6 +89,7 @@ function App() {
           </div>
 
           <div className="stock-table">
+            {loading && <p>Scanning market...</p>}
             <table>
               <thead>
                 <tr>
