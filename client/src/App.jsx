@@ -6,9 +6,10 @@ function App() {
   const [stocks, setStocks] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/stocks")
+    fetch("http://localhost:3000/api/test-scanner")
       .then((response) => response.json())
       .then((data) => {
+        console.log("Scanner data: ", data);
         setStocks(data);
       });
   }, []);
@@ -30,7 +31,7 @@ function App() {
       stock.price <= 20 &&
       stock.change >= 20 &&
       stock.rvol > 5 &&
-      stock.float < 20 &&
+      stock.float < 20_000_000 &&
       stock.hasNews
     );
   });
@@ -88,7 +89,7 @@ function App() {
                     <td>${stock.price.toFixed(2)}</td>
                     <td>+{stock.change}%</td>
                     <td>{stock.rvol}</td>
-                    <td>{stock.float}M</td>
+                    <td>{stock.floatMillions}M</td>
                   </tr>
                 ))}
               </tbody>
