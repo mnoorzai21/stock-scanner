@@ -10,36 +10,42 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const SCAN_INTERVAL = 120000;
+  const timeoutRef = useRef(null);
+  const isActiveRef = useRef(true);
+  const isScanningRef = useRef(false);
+
+  const runScanner = () => {
+    if (isScanningRef.current) return;
+    clearTimeout(timeoutRef.current);
+    isScanningRef.current = true;
+    fetch("http://localhost:3000/api/test-scanner")
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Scanner data: ", data);
+        isScanningRef.current = false;
+        if (!isActiveRef.current) return;
+        setStocks(data);
+        setLoading(false);
+        setError("");
+        setLastUpdated(new Date());
+        timeoutRef.current = setTimeout(runScanner, SCAN_INTERVAL);
+      })
+      .catch((error) => {
+        console.error("Scanner error:", error);
+        isScanningRef.current = false;
+        if (!isActiveRef.current) return;
+        setLoading(false);
+        setError("Unable to connect to the stock scanner.");
+        timeoutRef.current = setTimeout(runScanner, SCAN_INTERVAL);
+      });
+  };
 
   useEffect(() => {
-    let timeoutId;
-    let isActive = true;
-    const runScanner = () => {
-      fetch("http://localhost:3000/api/test-scanner")
-        .then((response) => response.json())
-        .then((data) => {
-          console.log("Scanner data: ", data);
-          if (!isActive) return;
-          setStocks(data);
-          setLoading(false);
-          setError("");
-          setLastUpdated(new Date());
-          timeoutId = setTimeout(runScanner, SCAN_INTERVAL);
-        })
-        .catch((error) => {
-          console.error("Scanner error:", error);
-
-          if (!isActive) return;
-          setLoading(false);
-          setError("Unable to connect to the stock scanner.");
-          timeoutId = setTimeout(runScanner, SCAN_INTERVAL);
-        });
-    };
-
+    isActiveRef.current = true;
     runScanner();
     return () => {
-      isActive = false;
-      clearTimeout(timeoutId);
+      isActiveRef.current = false;
+      clearTimeout(timeoutRef.current);
     };
   }, []);
 
@@ -91,6 +97,9 @@ function App() {
           {lastUpdated && (
             <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
           )}
+          <button className="alert-button" onClick={runScanner}>
+            Scan Now
+          </button>
           <button
             className="alert-button"
             onClick={() => {
