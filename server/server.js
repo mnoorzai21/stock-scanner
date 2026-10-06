@@ -467,9 +467,7 @@ app.get("/api/test-intraday-volume/:symbol", async (req, res) => {
       const historicalData = await historicalResponse.json();
 
       if (!historicalData.bars || historicalData.bars.length === 0) {
-        return res.status(404).json({
-          error: `No historical market data found for symbol ${symbol}`,
-        });
+        continue;
       }
 
       const first30Minutes = historicalData.bars.filter((bar) => {
@@ -629,7 +627,7 @@ app.get("/api/test-scanner", async (req, res) => {
 
     const allSnapshots = {};
 
-    for (const batch of symbolBatches.slice(0, 10)) {
+    for (const batch of symbolBatches) {
       const symbolsQuery = batch.join(",");
 
       const snapshotsResponse = await fetch(
