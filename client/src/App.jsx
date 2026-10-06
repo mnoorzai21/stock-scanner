@@ -60,13 +60,30 @@ function App() {
         <section className="scanner">
           <h2>Scanner Results</h2>
           <button
+            className="alert-button"
             onClick={() => {
               setAlertsEnabled(true);
             }}>
             {alertsEnabled ? "🔔 Alerts Enabled" : "Enable Alerts"}
           </button>
 
-          <p>Stocks: $2 - $20 | Gain: 20%+ | RVOL: 5+ | Float: Under 20M</p>
+          <div className="scanner-filters">
+            <span>
+              Price: <strong>$2–$20</strong>
+            </span>
+            <span>
+              Gain: <strong>20%+</strong>
+            </span>
+            <span>
+              RVOL: <strong>5x+</strong>
+            </span>
+            <span>
+              Float: <strong>Under 20M</strong>
+            </span>
+            <span>
+              News: <strong>Required</strong>
+            </span>
+          </div>
 
           <div className="stock-table">
             <table>
@@ -77,6 +94,7 @@ function App() {
                   <th>Change</th>
                   <th>RVOL</th>
                   <th>Float</th>
+                  <th>News</th>
                 </tr>
               </thead>
 
@@ -90,6 +108,7 @@ function App() {
                     <td>+{stock.change}%</td>
                     <td>{stock.rvol}</td>
                     <td>{stock.floatMillions}M</td>
+                    <td>{stock.headline}</td>
                   </tr>
                 ))}
               </tbody>
