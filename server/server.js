@@ -143,6 +143,48 @@ function getMarketOpenUtc(date) {
   };
 }
 
+async function getNews(symbol) {
+  const response = await fetch(
+    `https://data.alpaca.markets/v1beta1/news?symbols=${symbol}&limit=5`,
+    {
+      headers: {
+        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+
+  if (!data.news || data.news.length === 0) {
+    return {
+      hasNews: false,
+    };
+  }
+
+  const latestNews = data.news[0];
+
+  const newsTime = new Date(latestNews.created_at);
+  const now = new Date();
+
+  const ageInHours = (now - newsTime) / (1000 * 60 * 60);
+  const isFresh = ageInHours <= 24;
+
+  return {
+    hasNews: true,
+    isFresh: isFresh,
+    ageInHours: Number(ageInHours.toFixed(2)),
+    headline: latestNews.headline,
+    createdAt: latestNews.created_at,
+    source: latestNews.source,
+    url: latestNews.url,
+  };
+}
+
 async function getFloat(symbol) {
   const response = await fetch(
     `https://app.sentisense.ai/api/v1/stocks/float?ticker=${symbol}`,
@@ -666,7 +708,29 @@ app.get("/api/test-scanner", async (req, res) => {
       return stock.float < 20_000_000;
     });
 
-    res.json(lowFloatStocks);
+    const stocksWithNews = [];
+
+    for (const stock of lowFloatStocks) {
+      const newsData = await getNews(stock.symbol);
+
+      if (newsData) {
+        stocksWithNews.push({
+          ...stock,
+          hasNews: newsData.hasNews,
+          isFreshNews: newsData.isFresh,
+          newsAgeInHours: newsData.ageInHours,
+          headline: newsData.headline,
+          newsSource: newsData.source,
+          newsUrl: newsData.url,
+        });
+      }
+    }
+
+    const stocksWithFreshNews = stocksWithNews.filter((stock) => {
+      return stock.hasNews && stock.isFreshNews;
+    });
+
+    res.json(stocksWithFreshNews);
   } catch (error) {
     console.error(error);
 
@@ -686,6 +750,22 @@ app.get("/api/test-float/:symbol", async (req, res) => {
   } catch (error) {
     console.error("Float test error:", error);
     res.status(500).json({ error: "Failed to fetch float data" });
+  }
+});
+
+app.get("/api/test-news/:symbol", async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+
+  try {
+    const newsData = await getNews(symbol);
+
+    res.json(newsData);
+  } catch (error) {
+    console.error("News test error:", error);
+
+    res.status(500).json({
+      error: "Failed to fetch stock news",
+    });
   }
 });
 
