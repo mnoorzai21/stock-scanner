@@ -7,14 +7,28 @@ function App() {
 
   const [loading, setLoading] = useState(true);
 
+  const SCAN_INTERVAL = 120000;
+
   useEffect(() => {
-    fetch("http://localhost:3000/api/test-scanner")
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Scanner data: ", data);
-        setStocks(data);
-        setLoading(false);
-      });
+    let timeoutId;
+    let isActive = true;
+    const runScanner = () => {
+      fetch("http://localhost:3000/api/test-scanner")
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Scanner data: ", data);
+          if (!isActive) return;
+          setStocks(data);
+          setLoading(false);
+          timeoutId = setTimeout(runScanner, SCAN_INTERVAL);
+        });
+    };
+
+    runScanner();
+    return () => {
+      isActive = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const alertedStocks = useRef(new Set());
