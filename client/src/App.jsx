@@ -7,6 +7,7 @@ function App() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const SCAN_INTERVAL = 120000;
 
@@ -22,6 +23,7 @@ function App() {
           setStocks(data);
           setLoading(false);
           setError("");
+          setLastUpdated(new Date());
           timeoutId = setTimeout(runScanner, SCAN_INTERVAL);
         })
         .catch((error) => {
@@ -86,6 +88,9 @@ function App() {
       <main>
         <section className="scanner">
           <h2>Scanner Results</h2>
+          {lastUpdated && (
+            <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
+          )}
           <button
             className="alert-button"
             onClick={() => {
