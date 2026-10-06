@@ -79,7 +79,7 @@ function App() {
           <button
             className="alert-button"
             onClick={() => {
-              setAlertsEnabled(true);
+              setAlertsEnabled(!alertsEnabled);
             }}>
             {alertsEnabled ? "🔔 Alerts Enabled" : "Enable Alerts"}
           </button>
@@ -120,7 +120,7 @@ function App() {
                 {filteredStocks.map((stock) => (
                   <tr
                     key={stock.symbol}
-                    className={stock.change >= 100 ? "big-mover" : ""}>
+                    className={stock.change >= 30 ? "big-mover" : ""}>
                     <td>{stock.symbol}</td>
                     <td>${stock.price.toFixed(2)}</td>
                     <td>+{stock.change}%</td>
