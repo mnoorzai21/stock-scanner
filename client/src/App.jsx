@@ -126,7 +126,14 @@ function App() {
                     <td>+{stock.change}%</td>
                     <td>{stock.rvol}</td>
                     <td>{stock.floatMillions}M</td>
-                    <td>{stock.headline}</td>
+                    <td>
+                      <a
+                        href={stock.newsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer">
+                        {stock.headline}
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
