@@ -6,6 +6,7 @@ function App() {
   const [stocks, setStocks] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const SCAN_INTERVAL = 120000;
 
@@ -20,6 +21,15 @@ function App() {
           if (!isActive) return;
           setStocks(data);
           setLoading(false);
+          setError("");
+          timeoutId = setTimeout(runScanner, SCAN_INTERVAL);
+        })
+        .catch((error) => {
+          console.error("Scanner error:", error);
+
+          if (!isActive) return;
+          setLoading(false);
+          setError("Unable to connect to the stock scanner.");
           timeoutId = setTimeout(runScanner, SCAN_INTERVAL);
         });
     };
@@ -104,6 +114,7 @@ function App() {
 
           <div className="stock-table">
             {loading && <p>Scanning market...</p>}
+            {error && <p>{error}</p>}
             <table>
               <thead>
                 <tr>
