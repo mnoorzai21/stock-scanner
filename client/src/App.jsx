@@ -128,6 +128,13 @@ function App() {
               </thead>
 
               <tbody>
+                {!loading && !error && filteredStocks.length === 0 && (
+                  <tr>
+                    <td colSpan="6">
+                      No stocks currently match all scanner criteria.
+                    </td>
+                  </tr>
+                )}
                 {filteredStocks.map((stock) => (
                   <tr
                     key={stock.symbol}
