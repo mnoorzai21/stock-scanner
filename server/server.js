@@ -607,6 +607,10 @@ app.get("/api/test-scanner", async (req, res) => {
       },
     );
 
+    if (!assetsResponse.ok) {
+      throw new Error(`Alpaca assets request failed: ${assetsResponse.status}`);
+    }
+
     const assetsData = await assetsResponse.json();
 
     const tradableAssets = assetsData.filter((asset) => {
