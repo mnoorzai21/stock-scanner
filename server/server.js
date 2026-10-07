@@ -284,6 +284,10 @@ async function calculateRvol(symbol) {
 
   const lastTwentyOneTradingDates = completedTradingDates.slice(-21);
 
+  if (lastTwentyOneTradingDates.length < 21) {
+    return null;
+  }
+
   const testDate = lastTwentyOneTradingDates[20];
 
   const testMarketWindow = getMarketOpenUtc(testDate);
