@@ -19,7 +19,13 @@ function App() {
     clearTimeout(timeoutRef.current);
     isScanningRef.current = true;
     fetch("http://localhost:3000/api/test-scanner")
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Scanner request failed: ${response.status}`);
+        }
+
+        return response.json();
+      })
       .then((data) => {
         console.log("Scanner data: ", data);
         isScanningRef.current = false;
