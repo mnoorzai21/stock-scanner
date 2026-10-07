@@ -174,7 +174,7 @@ async function getNews(symbol) {
   const now = new Date();
 
   const ageInHours = (now - newsTime) / (1000 * 60 * 60);
-  const isFresh = ageInHours <= 24;
+  const isFresh = ageInHours >= 0 && ageInHours <= 24;
 
   return {
     hasNews: true,
