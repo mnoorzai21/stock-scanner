@@ -286,30 +286,46 @@ async function calculateRvol(symbol) {
 
   const historicalDates = lastTwentyOneTradingDates.slice(0, 20);
 
+  const historicalStartDate = historicalDates[0];
+  const historicalEndDate = historicalDates[historicalDates.length - 1];
+
+  const historicalStartWindow = getMarketOpenUtc(historicalStartDate);
+  const historicalEndWindow = getMarketOpenUtc(historicalEndDate);
+
   const historicalVolumes = [];
+
+  const historicalResponse = await fetch(
+    `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${historicalStartWindow.start}&end=${historicalEndWindow.end}&feed=iex`,
+    {
+      headers: {
+        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+      },
+    },
+  );
+
+  if (!historicalResponse.ok) {
+    throw new Error(
+      `Alpaca historical bars request failed for ${symbol}: ${historicalResponse.status}`,
+    );
+  }
+
+  const historicalData = await historicalResponse.json();
+
+  if (!historicalData.bars || historicalData.bars.length === 0) {
+    return null;
+  }
 
   for (const date of historicalDates) {
     const marketWindow = getMarketOpenUtc(date);
 
-    const historicalResponse = await fetch(
-      `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${marketWindow.start}&end=${marketWindow.end}&feed=iex`,
-      {
-        headers: {
-          "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
-          "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
-        },
-      },
-    );
-
-    const historicalData = await historicalResponse.json();
-
-    if (!historicalData.bars || historicalData.bars.length === 0) {
-      continue;
-    }
-
     const first30Minutes = historicalData.bars.filter((bar) => {
       return bar.t >= marketWindow.start && bar.t < marketWindow.end;
     });
+
+    if (first30Minutes.length === 0) {
+      continue;
+    }
 
     const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
       return total + bar.v;
