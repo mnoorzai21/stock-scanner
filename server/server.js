@@ -155,7 +155,9 @@ async function getNews(symbol) {
   );
 
   if (!response.ok) {
-    return null;
+    throw new Error(
+      `Alpaca news request failed for ${symbol}: ${response.status}`,
+    );
   }
 
   const data = await response.json();
