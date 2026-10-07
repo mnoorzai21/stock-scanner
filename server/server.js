@@ -196,7 +196,9 @@ async function getFloat(symbol) {
   );
 
   if (!response.ok) {
-    return null;
+    throw new Error(
+      `SentiSense float request failed for ${symbol}: ${response.status}`,
+    );
   }
 
   const data = await response.json();
