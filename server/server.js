@@ -355,6 +355,12 @@ async function calculateRvol(symbol) {
     },
   );
 
+  if (!response.ok) {
+    throw new Error(
+      `Alpaca current bars request failed for ${symbol}: ${response.status}`,
+    );
+  }
+
   const data = await response.json();
 
   if (!data.bars || data.bars.length === 0) {
