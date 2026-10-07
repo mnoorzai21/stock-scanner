@@ -644,6 +644,12 @@ app.get("/api/test-scanner", async (req, res) => {
         },
       );
 
+      if (!snapshotsResponse.ok) {
+        throw new Error(
+          `Alpaca snapshots request failed: ${snapshotsResponse.status}`,
+        );
+      }
+
       const snapshotsData = await snapshotsResponse.json();
 
       Object.assign(allSnapshots, snapshotsData);
