@@ -248,6 +248,12 @@ async function calculateRvol(symbol) {
     },
   );
 
+  if (!calendarResponse.ok) {
+    throw new Error(
+      `Alpaca calendar request failed: ${calendarResponse.status}`,
+    );
+  }
+
   const calendarData = await calendarResponse.json();
 
   const tradingDates = calendarData.map((day) => {
