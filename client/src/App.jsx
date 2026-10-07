@@ -28,6 +28,9 @@ function App() {
       })
       .then((data) => {
         console.log("Scanner data: ", data);
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid scanner data received");
+        }
         isScanningRef.current = false;
         if (!isActiveRef.current) return;
         setStocks(data);
