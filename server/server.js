@@ -688,12 +688,16 @@ app.get("/api/test-scanner", async (req, res) => {
         const retryAfter = snapshotsResponse.headers.get("Retry-After");
 
         const retrySeconds = Number(retryAfter);
+        const retryDate = Date.parse(retryAfter);
+
         const retryDelay =
           retryAfter !== null &&
           Number.isFinite(retrySeconds) &&
           retrySeconds >= 0
             ? retrySeconds * 1000
-            : 5000;
+            : retryAfter !== null && Number.isFinite(retryDate)
+              ? Math.max(0, retryDate - Date.now())
+              : 5000;
 
         console.log(
           `Alpaca rate limit reached. Retrying in ${retryDelay / 1000} seconds...`,
