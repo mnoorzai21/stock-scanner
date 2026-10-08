@@ -685,9 +685,21 @@ app.get("/api/test-scanner", async (req, res) => {
       );
 
       if (snapshotsResponse.status === 429) {
-        console.log("Alpaca rate limit reached. Retrying in 5 seconds...");
+        const retryAfter = snapshotsResponse.headers.get("Retry-After");
 
-        await sleep(5000);
+        const retrySeconds = Number(retryAfter);
+        const retryDelay =
+          retryAfter !== null &&
+          Number.isFinite(retrySeconds) &&
+          retrySeconds >= 0
+            ? retrySeconds * 1000
+            : 5000;
+
+        console.log(
+          `Alpaca rate limit reached. Retrying in ${retryDelay / 1000} seconds...`,
+        );
+
+        await sleep(retryDelay);
 
         snapshotsResponse = await fetch(
           `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsQuery}&feed=iex`,
