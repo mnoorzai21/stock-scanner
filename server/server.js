@@ -9,6 +9,10 @@ app.use(cors());
 
 const PORT = 3000;
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 app.get("/", (req, res) => {
   res.send("Stock Scanner API is running");
 });
@@ -670,7 +674,7 @@ app.get("/api/test-scanner", async (req, res) => {
     for (const batch of symbolBatches) {
       const symbolsQuery = batch.join(",");
 
-      const snapshotsResponse = await fetch(
+      let snapshotsResponse = await fetch(
         `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsQuery}&feed=iex`,
         {
           headers: {
@@ -679,6 +683,22 @@ app.get("/api/test-scanner", async (req, res) => {
           },
         },
       );
+
+      if (snapshotsResponse.status === 429) {
+        console.log("Alpaca rate limit reached. Retrying in 5 seconds...");
+
+        await sleep(5000);
+
+        snapshotsResponse = await fetch(
+          `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsQuery}&feed=iex`,
+          {
+            headers: {
+              "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+              "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+            },
+          },
+        );
+      }
 
       if (!snapshotsResponse.ok) {
         throw new Error(
