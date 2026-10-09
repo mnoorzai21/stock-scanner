@@ -334,7 +334,7 @@ async function calculateRvol(symbol) {
 
   const historicalVolumes = [];
 
-  const historicalResponse = await fetch(
+  const historicalResponse = await fetchWithRetry(
     `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${historicalStartWindow.start}&end=${historicalEndWindow.end}&feed=iex`,
     {
       headers: {
