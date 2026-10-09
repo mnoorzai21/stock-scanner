@@ -385,7 +385,7 @@ async function calculateRvol(symbol) {
   const averageHistoricalVolume =
     totalHistoricalVolume / historicalVolumes.length;
 
-  const response = await fetch(
+  const response = await fetchWithRetry(
     `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testMarketWindow.start}&end=${testMarketWindow.end}&feed=iex`,
     {
       headers: {
