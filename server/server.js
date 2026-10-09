@@ -13,6 +13,34 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function fetchWithRetry(url, options) {
+  let response = await fetch(url, options);
+
+  if (response.status === 429) {
+    const retryAfter = response.headers.get("Retry-After");
+    const retrySeconds = Number(retryAfter);
+    const retryDate = Date.parse(retryAfter);
+
+    const calculatedDelay =
+      retryAfter !== null && Number.isFinite(retrySeconds) && retrySeconds >= 0
+        ? retrySeconds * 1000
+        : retryAfter !== null && Number.isFinite(retryDate)
+          ? Math.max(0, retryDate - Date.now())
+          : 5000;
+
+    const retryDelay = Math.min(calculatedDelay, 60000);
+
+    console.log(
+      `API rate limit detected. Retrying in ${retryDelay / 1000} seconds...`,
+    );
+
+    await sleep(retryDelay);
+
+    response = await fetch(url, options);
+  }
+  return response;
+}
+
 app.get("/", (req, res) => {
   res.send("Stock Scanner API is running");
 });
@@ -674,7 +702,7 @@ app.get("/api/test-scanner", async (req, res) => {
     for (const batch of symbolBatches) {
       const symbolsQuery = batch.join(",");
 
-      let snapshotsResponse = await fetch(
+      const snapshotsResponse = await fetchWithRetry(
         `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsQuery}&feed=iex`,
         {
           headers: {
@@ -683,39 +711,6 @@ app.get("/api/test-scanner", async (req, res) => {
           },
         },
       );
-
-      if (snapshotsResponse.status === 429) {
-        const retryAfter = snapshotsResponse.headers.get("Retry-After");
-
-        const retrySeconds = Number(retryAfter);
-        const retryDate = Date.parse(retryAfter);
-
-        const calculatedDelay =
-          retryAfter !== null &&
-          Number.isFinite(retrySeconds) &&
-          retrySeconds >= 0
-            ? retrySeconds * 1000
-            : retryAfter !== null && Number.isFinite(retryDate)
-              ? Math.max(0, retryDate - Date.now())
-              : 5000;
-        const retryDelay = Math.min(calculatedDelay, 60000);
-
-        console.log(
-          `Alpaca rate limit reached. Retrying in ${retryDelay / 1000} seconds...`,
-        );
-
-        await sleep(retryDelay);
-
-        snapshotsResponse = await fetch(
-          `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsQuery}&feed=iex`,
-          {
-            headers: {
-              "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
-              "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
-            },
-          },
-        );
-      }
 
       if (!snapshotsResponse.ok) {
         throw new Error(
