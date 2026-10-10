@@ -232,7 +232,12 @@ async function getNews(symbol) {
     };
   }
 
-  const latestNews = data.news[0];
+  // Select the most recently published article, regardless of API ordering.
+  const latestNews = data.news.reduce((newest, article) =>
+    new Date(article.created_at) > new Date(newest.created_at)
+      ? article
+      : newest,
+  );
 
   const newsTime = new Date(latestNews.created_at);
   const now = new Date();
