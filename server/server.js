@@ -243,7 +243,9 @@ async function getNews(symbol) {
   const now = new Date();
 
   const ageInHours = (now - newsTime) / (1000 * 60 * 60);
-  const isFresh = ageInHours >= 0 && ageInHours <= 24;
+  // Require a valid publication age within the last 24 hours.
+  const isFresh =
+    Number.isFinite(ageInHours) && ageInHours >= 0 && ageInHours <= 24;
 
   return {
     hasNews: true,
