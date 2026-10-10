@@ -665,7 +665,7 @@ app.get("/api/test-calendar", async (req, res) => {
 
 app.get("/api/test-scanner", async (req, res) => {
   try {
-    const assetsResponse = await fetch(
+    const assetsResponse = await fetchWithRetry(
       "https://paper-api.alpaca.markets/v2/assets?status=active&asset_class=us_equity",
       {
         headers: {
