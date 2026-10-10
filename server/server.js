@@ -791,13 +791,18 @@ app.get("/api/test-scanner", async (req, res) => {
     for (const stock of momentumCandidates) {
       const symbol = stock.symbol;
 
-      const rvolData = await calculateRvol(symbol);
+      try {
+        const rvolData = await calculateRvol(symbol);
 
-      if (rvolData) {
-        stocksWithRvol.push({
-          ...stock,
-          rvol: rvolData.rvol,
-        });
+        if (rvolData) {
+          stocksWithRvol.push({
+            ...stock,
+            rvol: rvolData.rvol,
+          });
+        }
+      } catch (error) {
+        // Log the failure and continue scanning other stocks.
+        console.error(`RVOL calculation failed for ${symbol}:`, error);
       }
     }
 
