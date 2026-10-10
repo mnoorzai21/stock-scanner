@@ -176,7 +176,7 @@ function getMarketOpenUtc(date) {
 }
 
 async function getNews(symbol) {
-  const response = await fetch(
+  const response = await fetchWithRetry(
     `https://data.alpaca.markets/v1beta1/news?symbols=${symbol}&limit=5`,
     {
       headers: {
