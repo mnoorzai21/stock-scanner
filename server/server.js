@@ -14,13 +14,29 @@ function sleep(ms) {
 }
 
 async function fetchWithRetry(url, options) {
-  let response = await fetch(url, options);
+  let response;
 
+  try {
+    // Send the initial API request.
+    response = await fetch(url, options);
+  } catch (error) {
+    // Retry once after a temporary network failure.
+    console.log("Network request failed. Retrying in 3 seconds...");
+
+    await sleep(3000);
+
+    response = await fetch(url, options);
+  }
+
+  // Retry once if the API responds with HTTP 429 (rate limit exceeded).
   if (response.status === 429) {
+    // Read the server's recommended waiting time, if provided.
     const retryAfter = response.headers.get("Retry-After");
     const retrySeconds = Number(retryAfter);
     const retryDate = Date.parse(retryAfter);
 
+    // Support Retry-After values expressed as seconds or an HTTP date.
+    // Default to 5 seconds when the header is missing or invalid.
     const calculatedDelay =
       retryAfter !== null && Number.isFinite(retrySeconds) && retrySeconds >= 0
         ? retrySeconds * 1000
@@ -28,16 +44,21 @@ async function fetchWithRetry(url, options) {
           ? Math.max(0, retryDate - Date.now())
           : 5000;
 
+    // Limit the waiting time to 60 seconds.
     const retryDelay = Math.min(calculatedDelay, 60000);
 
+    // Log the retry delay to help diagnose API rate limits.
     console.log(
       `API rate limit detected. Retrying in ${retryDelay / 1000} seconds...`,
     );
 
+    // Wait before making one final request.
     await sleep(retryDelay);
 
     response = await fetch(url, options);
   }
+
+  // Return the response so the caller can validate its status.
   return response;
 }
 
