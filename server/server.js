@@ -47,9 +47,9 @@ async function fetchWithRetry(url, options) {
     // Limit the waiting time to 60 seconds.
     const retryDelay = Math.min(calculatedDelay, 60000);
 
-    // Log the retry delay to help diagnose API rate limits.
+    // Log the rate-limited API hostname and retry delay without exposing credentials.
     console.log(
-      `API rate limit detected. Retrying in ${retryDelay / 1000} seconds...`,
+      `API rate limit detected for ${new URL(url).hostname}. Retrying in ${retryDelay / 1000} seconds...`,
     );
 
     // Wait before retrying the rate-limited request.
@@ -808,14 +808,19 @@ app.get("/api/test-scanner", async (req, res) => {
     const stocksWithFloat = [];
 
     for (const stock of highRvolStocks) {
-      const floatData = await getFloat(stock.symbol);
+      try {
+        const floatData = await getFloat(stock.symbol);
 
-      if (floatData) {
-        stocksWithFloat.push({
-          ...stock,
-          float: floatData.float,
-          floatMillions: floatData.floatMillions,
-        });
+        if (floatData) {
+          stocksWithFloat.push({
+            ...stock,
+            float: floatData.float,
+            floatMillions: floatData.floatMillions,
+          });
+        }
+      } catch (error) {
+        // Log the failure and continue scanning other stocks.
+        console.error(`Float request failed for ${stock.symbol}:`, error);
       }
     }
 
