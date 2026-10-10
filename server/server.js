@@ -52,10 +52,21 @@ async function fetchWithRetry(url, options) {
       `API rate limit detected. Retrying in ${retryDelay / 1000} seconds...`,
     );
 
-    // Wait before making one final request.
+    // Wait before retrying the rate-limited request.
     await sleep(retryDelay);
 
-    response = await fetch(url, options);
+    try {
+      response = await fetch(url, options);
+    } catch (error) {
+      // Allow one final attempt if the rate-limit retry has a network failure.
+      console.log(
+        "Network failure during rate-limit retry. Retrying in 3 seconds...",
+      );
+
+      await sleep(3000);
+
+      response = await fetch(url, options);
+    }
   }
 
   // Return the response so the caller can validate its status.
