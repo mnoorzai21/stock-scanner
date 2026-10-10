@@ -220,7 +220,7 @@ async function getNews(symbol) {
 }
 
 async function getFloat(symbol) {
-  const response = await fetch(
+  const response = await fetchWithRetry(
     `https://app.sentisense.ai/api/v1/stocks/float?ticker=${symbol}`,
     {
       headers: {
