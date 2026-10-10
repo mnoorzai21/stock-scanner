@@ -274,7 +274,7 @@ async function calculateRvol(symbol) {
 
   const first30MinutesComplete = marketTime >= "10:00";
 
-  const calendarResponse = await fetch(
+  const calendarResponse = await fetchWithRetry(
     `https://paper-api.alpaca.markets/v2/calendar?start=${calendarStart}&end=${calendarEnd}`,
     {
       headers: {
