@@ -60,13 +60,36 @@ function App() {
 
   const alertedStocks = useRef(new Set());
 
-  const playAlertSound = () => {
+  const playAlertSound = (level) => {
     const audioContext = new AudioContext();
-    const oscillator = audioContext.createOscillator();
 
-    oscillator.connect(audioContext.destination);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.3);
+    const playBeep = (frequency, startTime, duration) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.frequency.value = frequency;
+      oscillator.type = "sine";
+
+      gainNode.gain.setValueAtTime(0.6, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    };
+
+    const now = audioContext.currentTime;
+
+    if (level === 20) {
+      // One short beep for stocks gaining at least 20%.
+      playBeep(600, now, 0.2);
+    } else if (level === 30) {
+      // Two higher-pitched beeps for stocks gaining at least 30%.
+      playBeep(1000, now, 0.2);
+      playBeep(1000, now + 0.3, 0.2);
+    }
   };
 
   const filteredStocks = stocks.filter((stock) => {
@@ -86,9 +109,23 @@ function App() {
     }
 
     filteredStocks.forEach((stock) => {
-      if (stock.change >= 30 && !alertedStocks.current.has(stock.symbol)) {
-        playAlertSound();
-        alertedStocks.current.add(stock.symbol);
+      const alertedLevels = alertedStocks.current;
+
+      if (stock.change >= 30) {
+        const alertKey = `${stock.symbol}-30`;
+
+        if (!alertedLevels.has(alertKey)) {
+          playAlertSound(30);
+          alertedLevels.add(alertKey);
+          alertedLevels.add(`${stock.symbol}-20`);
+        }
+      } else if (stock.change >= 20) {
+        const alertKey = `${stock.symbol}-20`;
+
+        if (!alertedLevels.has(alertKey)) {
+          playAlertSound(20);
+          alertedLevels.add(alertKey);
+        }
       }
     });
   }, [alertsEnabled, filteredStocks]);
