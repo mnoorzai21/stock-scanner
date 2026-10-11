@@ -79,7 +79,7 @@ SENTISENSE_API_KEY=your_sentisense_api_key
 Clone the repository:
 
 ```bash
-git clone https://github.com/mnoorzai/stock-scanner.git
+git clone https://github.com/mnoorzai21/stock-scanner.git
 cd stock-scanner
 ```
 
