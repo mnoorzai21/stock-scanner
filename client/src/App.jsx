@@ -18,7 +18,9 @@ function App() {
     if (isScanningRef.current) return;
     clearTimeout(timeoutRef.current);
     isScanningRef.current = true;
-    fetch("http://localhost:3000/api/test-scanner")
+    fetch(
+      `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/test-scanner`,
+    )
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Scanner request failed: ${response.status}`);
