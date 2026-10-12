@@ -201,12 +201,12 @@ function App() {
                   <tr
                     key={stock.symbol}
                     className={stock.change >= 30 ? "big-mover" : ""}>
-                    <td>{stock.symbol}</td>
-                    <td>${stock.price.toFixed(2)}</td>
-                    <td>+{stock.change}%</td>
-                    <td>{stock.rvol}</td>
-                    <td>{stock.floatMillions}M</td>
-                    <td>
+                    <td data-label="Symbol">{stock.symbol}</td>
+                    <td data-label="Price">${stock.price.toFixed(2)}</td>
+                    <td data-label="Change">+{stock.change}%</td>
+                    <td data-label="RVOL">{stock.rvol}</td>
+                    <td data-label="Float">{stock.floatMillions}M</td>
+                    <td data-label="News">
                       <a
                         href={stock.newsUrl}
                         target="_blank"
