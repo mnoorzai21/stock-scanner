@@ -2,21 +2,23 @@
 
 A full-stack stock momentum scanner built with **React, Vite, Node.js, and Express**. The application scans U.S. stocks for momentum opportunities using market data, trading volume, share float, and recent news.
 
+**[Live Demo](https://mnoorzai21.github.io/stock-scanner/)**
+
 ## Features
 
-- **Momentum Scanner:** Identifies stocks meeting five trading criteria.
-- **Market Data Integration:** Retrieves stock information using the Alpaca API.
-- **Relative Volume (RVOL):** Measures trading activity against historical volume.
+- **Momentum Scanner:** Screens stocks against five trading criteria.
+- **Market Data Integration:** Retrieves U.S. stock information using the Alpaca API.
+- **Relative Volume (RVOL):** Evaluates trading activity against historical volume.
 - **Float Filtering:** Uses SentiSense data to identify lower-float stocks.
 - **News Verification:** Requires recent news before a stock qualifies.
-- **Automatic Scanning:** Refreshes scanner results approximately every two minutes.
+- **Automatic Scanning:** Refreshes results approximately every two minutes while the application is running.
 - **Manual Scanning:** Includes a Scan Now button.
-- **Sound Alerts:** Plays different alerts when qualifying stocks reach 20% and 30% gains.
-- **Responsive Interface:** Dark-themed dashboard built with React.
+- **Sound Alerts:** Plays different alerts for qualifying stocks reaching 20% and 30% gains.
+- **Responsive Dashboard:** Dark-themed React interface.
 
 ## Stock Selection Criteria
 
-A stock must meet all five conditions:
+A stock must meet **all five conditions** to appear in the results.
 
 | Filter | Requirement |
 |---|---|
@@ -40,10 +42,13 @@ A stock must meet all five conditions:
 - REST API
 
 **External APIs**
-- Alpaca — stock market data and news
+- Alpaca — market data and news
 - SentiSense — share float information
 
-**Developer Tools**
+**Deployment and Developer Tools**
+- GitHub Pages — frontend hosting
+- Render — backend hosting
+- GitHub Actions — automated frontend deployment
 - Git and GitHub
 - Visual Studio Code
 - npm
@@ -51,22 +56,24 @@ A stock must meet all five conditions:
 ## How It Works
 
 1. The React frontend requests scanner results from the Express backend.
-2. The backend retrieves stock market data from Alpaca.
-3. Stocks are evaluated against the momentum criteria.
-4. Additional volume, float, and news checks narrow the results.
+2. The backend retrieves market data from Alpaca.
+3. Stocks are evaluated against the price and momentum criteria.
+4. Volume, float, and news checks further filter the results.
 5. Qualified stocks appear in the dashboard.
-6. When alerts are enabled, qualifying stocks trigger distinct sounds at the 20% and 30% gain thresholds.
+6. When sound alerts are enabled, qualifying stocks can trigger distinct sounds at the 20% and 30% thresholds.
+
+## Live Deployment
+
+**Frontend:** https://mnoorzai21.github.io/stock-scanner/
+
+**Backend:** Node.js and Express hosted on Render.
+
+The frontend is deployed to GitHub Pages using GitHub Actions.
+The backend is deployed separately on Render.
+
+**Hosting note:** The backend uses Render's free service, which may sleep during inactivity. The first request after an idle period may take longer to complete.
 
 ## Getting Started
-
-### Environment Variables
-
-Create a `.env` file inside the `server` folder:
-
-```env
-ALPACA_API_KEY=your_alpaca_api_key
-ALPACA_SECRET_KEY=your_alpaca_secret_key
-SENTISENSE_API_KEY=your_sentisense_api_key
 
 ### Prerequisites
 
@@ -97,9 +104,19 @@ cd ../server
 npm install
 ```
 
-Configure the required API credentials using environment variables on the backend. Keep your API keys private and never commit your `.env` file.
+### Environment Variables
 
-### Run the Application
+Create a `.env` file inside the `server` directory:
+
+```env
+ALPACA_API_KEY=your_alpaca_api_key
+ALPACA_SECRET_KEY=your_alpaca_secret_key
+SENTISENSE_API_KEY=your_sentisense_api_key
+```
+
+Keep your API credentials private. Never commit the backend `.env` file.
+
+### Run Locally
 
 Start the backend from the `server` directory:
 
@@ -115,26 +132,28 @@ npm run dev
 
 Open the local URL provided by Vite, usually:
 
-`http://localhost:5173`
+http://localhost:5173
 
-The frontend expects the backend to run at:
+The frontend connects to the local backend at:
 
-`http://localhost:3000`
+http://localhost:3000
 
 ## Current Limitations
 
-- Market data availability and timeliness depend on the API provider and subscription.
+- Market data availability, coverage, and timeliness depend on API providers and subscriptions.
 - Stocks that do not meet every filter are excluded.
-- Browser sound alerts require audio permission or user interaction.
+- Browser sound alerts require user interaction and may be affected by browser restrictions.
+- Alerts operate while the web application is running; they are not server-side push notifications.
+- The Render free service may introduce delays after inactivity.
 - The application is designed for momentum research and does not execute trades.
-- This version uses a locally configured backend URL.
 
 ## Future Improvements
 
 - Mobile notifications
 - Historical scanner results
-- Additional filter customization
+- Customizable scanner filters
 - More extensive automated testing
+- Improved market data coverage and monitoring
 
 ## Disclaimer
 
@@ -144,4 +163,4 @@ This project is for educational and informational purposes only. It is not finan
 
 **Mohammad Nabi Noorzai**
 
-GitHub: [mnoorzai21](https://github.com/mnoorzai21)
+GitHub: https://github.com/mnoorzai21
