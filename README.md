@@ -22,7 +22,7 @@ A stock must meet **all five conditions** to appear in the results.
 
 | Filter | Requirement |
 |---|---|
-| Price | $2–$20 |
+| Price | $1–$20 |
 | Price Change | At least +20% |
 | Relative Volume | Greater than 5x |
 | Share Float | Below 20 million shares |

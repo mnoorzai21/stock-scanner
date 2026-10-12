@@ -96,7 +96,7 @@ function App() {
 
   const filteredStocks = stocks.filter((stock) => {
     return (
-      stock.price >= 2 &&
+      stock.price >= 1 &&
       stock.price <= 20 &&
       stock.change >= 20 &&
       stock.rvol > 5 &&
@@ -158,7 +158,7 @@ function App() {
 
           <div className="scanner-filters">
             <span>
-              Price: <strong>$2–$20</strong>
+              Price: <strong>$1–$20</strong>
             </span>
             <span>
               Gain: <strong>20%+</strong>

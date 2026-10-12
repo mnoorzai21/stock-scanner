@@ -783,7 +783,7 @@ app.get("/api/test-scanner", async (req, res) => {
     });
 
     const momentumCandidates = stocks.filter((stock) => {
-      return stock.price >= 2 && stock.price <= 20 && stock.change >= 20;
+      return stock.price >= 1 && stock.price <= 20 && stock.change >= 20;
     });
 
     const stocksWithRvol = [];
