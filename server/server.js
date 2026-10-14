@@ -980,6 +980,13 @@ app.get("/api/test-scanner", async (req, res) => {
       return stock.rvol > 5;
     });
 
+    console.log("SCANNER DEBUG:", {
+      totalSnapshots: Object.keys(allSnapshots).length,
+      momentumCandidates: momentumCandidates.length,
+      stocksWithRvol: stocksWithRvol.length,
+      highRvolStocks: highRvolStocks.length,
+    });
+
     const stocksWithFloat = [];
 
     for (const stock of highRvolStocks) {

@@ -101,7 +101,8 @@ function App() {
       stock.change >= 20 &&
       stock.rvol > 5 &&
       stock.float < 20_000_000 &&
-      stock.hasNews
+      stock.hasNews &&
+      stock.isFreshNews
     );
   });
 
