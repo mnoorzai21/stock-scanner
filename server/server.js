@@ -209,7 +209,7 @@ function getMarketOpenUtc(date) {
 
 async function getNews(symbol) {
   const response = await fetchWithRetry(
-    `https://data.alpaca.markets/v1beta1/news?symbols=${symbol}&limit=5`,
+    `https://data.alpaca.markets/v1beta1/news?symbols=${encodeURIComponent(symbol)}&limit=50`,
     {
       headers: {
         "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
@@ -225,31 +225,66 @@ async function getNews(symbol) {
   }
 
   const data = await response.json();
+  const articles = data.news || [];
 
-  if (!data.news || data.news.length === 0) {
+  // Exclude generic market-mover articles.
+  const genericPatterns = [
+    /\bstocks moving\b/i,
+    /\bstocks are moving\b/i,
+    /\bpre-market session\b/i,
+    /\bafter-market session\b/i,
+    /\bintraday session\b/i,
+    /\bbiggest gainers\b/i,
+    /\bbiggest losers\b/i,
+    /\btop gainers\b/i,
+    /\btop losers\b/i,
+    /\bmarket movers\b/i,
+    /\bwhy .* stock is (up|down|moving)\b/i,
+  ];
+
+  const now = Date.now();
+
+  // Keep only fresh, non-generic articles.
+  const relevantArticles = articles.filter((article) => {
+    const headline = article.headline || "";
+
+    const ageInHours =
+      (now - new Date(article.created_at).getTime()) / (1000 * 60 * 60);
+
+    const isFresh =
+      Number.isFinite(ageInHours) && ageInHours >= 0 && ageInHours <= 24;
+
+    const isGeneric = genericPatterns.some((pattern) => pattern.test(headline));
+
+    return isFresh && !isGeneric;
+  });
+
+  // No qualifying article found.
+  if (relevantArticles.length === 0) {
     return {
-      hasNews: false,
+      hasNews: articles.length > 0,
+      isFresh: false,
+      ageInHours: null,
+      headline: null,
+      createdAt: null,
+      source: null,
+      url: null,
     };
   }
 
-  // Select the most recently published article, regardless of API ordering.
-  const latestNews = data.news.reduce((newest, article) =>
+  // Select the newest qualifying article.
+  const latestNews = relevantArticles.reduce((newest, article) =>
     new Date(article.created_at) > new Date(newest.created_at)
       ? article
       : newest,
   );
 
-  const newsTime = new Date(latestNews.created_at);
-  const now = new Date();
-
-  const ageInHours = (now - newsTime) / (1000 * 60 * 60);
-  // Require a valid publication age within the last 24 hours.
-  const isFresh =
-    Number.isFinite(ageInHours) && ageInHours >= 0 && ageInHours <= 24;
+  const ageInHours =
+    (now - new Date(latestNews.created_at).getTime()) / (1000 * 60 * 60);
 
   return {
     hasNews: true,
-    isFresh: isFresh,
+    isFresh: true,
     ageInHours: Number(ageInHours.toFixed(2)),
     headline: latestNews.headline,
     createdAt: latestNews.created_at,
@@ -258,69 +293,184 @@ async function getNews(symbol) {
   };
 }
 
-async function getFloat(symbol) {
-  const response = await fetchWithRetry(
-    `https://app.sentisense.ai/api/v1/stocks/float?ticker=${symbol}`,
-    {
-      headers: {
-        "X-SentiSense-API-Key": process.env.SENTISENSE_API_KEY,
-      },
-    },
-  );
+const floatCache = new Map();
+const FLOAT_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+let nextFloatRequestTime = 0;
+let floatRequestQueue = Promise.resolve();
+
+function waitForFloatRateLimit() {
+  const scheduled = floatRequestQueue.then(async () => {
+    const now = Date.now();
+
+    const waitTime = Math.max(0, nextFloatRequestTime - now);
+
+    if (waitTime > 0) {
+      await sleep(waitTime);
+    }
+
+    nextFloatRequestTime = Date.now() + 15000;
+  });
+
+  floatRequestQueue = scheduled.catch(() => {});
+
+  return scheduled;
+}
+
+async function getFloat(symbol) {
+  symbol = symbol.toUpperCase();
+
+  // Step 1: Check cached float data.
+  const cached = floatCache.get(symbol);
+
+  if (cached && Date.now() - cached.timestamp < FLOAT_CACHE_DURATION) {
+    return cached.data;
+  }
+
+  // Step 2: Respect Massive's API rate limit.
+  await waitForFloatRateLimit();
+
+  // Step 3: Build the Massive API request.
+  const url = new URL("https://api.massive.com/stocks/vX/float");
+
+  url.searchParams.set("ticker", symbol);
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${process.env.MASSIVE_API_KEY}`,
+    },
+  });
+
+  // Step 4: Handle API errors.
   if (!response.ok) {
     throw new Error(
-      `SentiSense float request failed for ${symbol}: ${response.status}`,
+      `Massive float request failed for ${symbol}: ${response.status}`,
     );
   }
 
+  // Step 5: Read the float data.
   const data = await response.json();
 
-  if (data.freeFloat == null) {
+  const result = data.results?.find((stock) => stock.ticker === symbol);
+
+  if (!result || !Number.isFinite(result.free_float)) {
     return null;
   }
 
-  return {
-    symbol: data.ticker,
-    float: data.freeFloat,
-    floatMillions: Number((data.freeFloat / 1_000_000).toFixed(2)),
+  // Step 6: Format the float information.
+  const floatData = {
+    symbol: result.ticker,
+    float: result.free_float,
+    floatMillions: Number((result.free_float / 1_000_000).toFixed(2)),
+    floatEffectiveDate: result.effective_date,
+    freeFloatPercent: result.free_float_percent,
   };
+
+  // Step 7: Save the result in the cache.
+  floatCache.set(symbol, {
+    data: floatData,
+    timestamp: Date.now(),
+  });
+
+  return floatData;
+}
+
+function getEasternTimeUtc(date, hour, minute = 0) {
+  const noonUtc = new Date(`${date}T12:00:00Z`);
+
+  const timeZoneName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    timeZoneName: "shortOffset",
+  })
+    .formatToParts(noonUtc)
+    .find((part) => part.type === "timeZoneName").value;
+
+  const offsetHours = Number(timeZoneName.replace("GMT", ""));
+
+  const utcTime = new Date(`${date}T00:00:00Z`);
+
+  utcTime.setUTCHours(hour - offsetHours, minute, 0, 0);
+
+  return utcTime.toISOString();
+}
+
+function getTradingSession(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+
+  const hour = Number(parts.find((part) => part.type === "hour").value);
+
+  const minute = Number(parts.find((part) => part.type === "minute").value);
+
+  const minutes = hour * 60 + minute;
+
+  if (minutes >= 240 && minutes < 570) {
+    return {
+      session: "premarket",
+      startMinutes: 240,
+      endMinutes: 570,
+    };
+  }
+
+  if (minutes >= 570 && minutes < 960) {
+    return {
+      session: "regular",
+      startMinutes: 570,
+      endMinutes: 960,
+    };
+  }
+
+  if (minutes >= 960 && minutes < 1200) {
+    return {
+      session: "afterhours",
+      startMinutes: 960,
+      endMinutes: 1200,
+    };
+  }
+
+  return null;
 }
 
 async function calculateRvol(symbol) {
-  const today = new Date();
+  const now = new Date();
+  const session = getTradingSession(now);
 
-  const calendarStartDate = new Date(today);
-  calendarStartDate.setDate(calendarStartDate.getDate() - 35);
+  console.log("RVOL DEBUG:", {
+    symbol,
+    currentTime: now.toISOString(),
+    session,
+  });
 
-  const calendarStart = calendarStartDate.toISOString().split("T")[0];
+  // Outside supported trading hours.
+  if (!session) {
+    return null;
+  }
 
   const marketDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(today);
+  }).format(now);
 
-  const calendarEnd = marketDate;
+  const calendarStartDate = new Date(`${marketDate}T12:00:00Z`);
 
-  const marketTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(today);
+  calendarStartDate.setUTCDate(calendarStartDate.getUTCDate() - 45);
 
-  const first30MinutesComplete = marketTime >= "10:00";
+  const calendarStart = calendarStartDate.toISOString().slice(0, 10);
+
+  const headers = {
+    "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
+    "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
+  };
 
   const calendarResponse = await fetchWithRetry(
-    `https://paper-api.alpaca.markets/v2/calendar?start=${calendarStart}&end=${calendarEnd}`,
-    {
-      headers: {
-        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
-      },
-    },
+    `https://paper-api.alpaca.markets/v2/calendar?start=${calendarStart}&end=${marketDate}`,
+    { headers },
   );
 
   if (!calendarResponse.ok) {
@@ -329,137 +479,157 @@ async function calculateRvol(symbol) {
     );
   }
 
-  const calendarData = await calendarResponse.json();
+  const calendar = await calendarResponse.json();
 
-  const tradingDates = calendarData.map((day) => {
-    return day.date;
-  });
-
-  const todayMarketDay = calendarData.find((day) => {
-    return day.date === marketDate;
-  });
-
-  const canUseToday = todayMarketDay !== undefined && first30MinutesComplete;
-
-  const completedTradingDates = tradingDates.filter((date) => {
-    if (date < marketDate) {
-      return true;
-    }
-
-    if (date === marketDate && canUseToday) {
-      return true;
-    }
-
-    return false;
-  });
-
-  const lastTwentyOneTradingDates = completedTradingDates.slice(-21);
-
-  if (lastTwentyOneTradingDates.length < 21) {
+  // Do not calculate live RVOL on weekends or holidays.
+  if (!calendar.some((day) => day.date === marketDate)) {
     return null;
   }
 
-  const testDate = lastTwentyOneTradingDates[20];
+  const historicalDates = calendar
+    .map((day) => day.date)
+    .filter((date) => date < marketDate)
+    .slice(-20);
 
-  const testMarketWindow = getMarketOpenUtc(testDate);
+  if (historicalDates.length < 20) {
+    return null;
+  }
 
-  const historicalDates = lastTwentyOneTradingDates.slice(0, 20);
+  const currentSessionStart = Math.floor(
+    new Date(
+      getEasternTimeUtc(
+        marketDate,
+        Math.floor(session.startMinutes / 60),
+        session.startMinutes % 60,
+      ),
+    ).getTime() / 1000,
+  );
 
-  const historicalStartDate = historicalDates[0];
-  const historicalEndDate = historicalDates[historicalDates.length - 1];
+  const sessionEnd = Math.floor(
+    new Date(
+      getEasternTimeUtc(
+        marketDate,
+        Math.floor(session.endMinutes / 60),
+        session.endMinutes % 60,
+      ),
+    ).getTime() / 1000,
+  );
 
-  const historicalStartWindow = getMarketOpenUtc(historicalStartDate);
-  const historicalEndWindow = getMarketOpenUtc(historicalEndDate);
+  // Only compare completed 5-minute intervals.
+  const elapsedMinutes = Math.min(
+    Math.floor((now.getTime() / 1000 - currentSessionStart) / 300) * 5,
+    session.endMinutes - session.startMinutes,
+  );
+
+  if (elapsedMinutes < 5) {
+    return null;
+  }
+
+  const getWindow = (date) => {
+    const start = new Date(
+      getEasternTimeUtc(
+        date,
+        Math.floor(session.startMinutes / 60),
+        session.startMinutes % 60,
+      ),
+    );
+
+    const end = new Date(start.getTime() + elapsedMinutes * 60 * 1000);
+
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+    };
+  };
+
+  const getVolume = async (date) => {
+    const window = getWindow(date);
+
+    const url = new URL(
+      `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`,
+    );
+
+    url.searchParams.set("timeframe", "5Min");
+    url.searchParams.set("start", window.start);
+    url.searchParams.set("end", window.end);
+    url.searchParams.set("feed", "iex");
+    url.searchParams.set("limit", "1000");
+
+    let totalVolume = 0;
+    let numberOfBars = 0;
+
+    while (url) {
+      const response = await fetchWithRetry(url.toString(), { headers });
+
+      if (!response.ok) {
+        throw new Error(
+          `Alpaca bars request failed for ${symbol}: ${response.status}`,
+        );
+      }
+
+      const data = await response.json();
+
+      for (const bar of data.bars || []) {
+        const timestamp = new Date(bar.t).getTime();
+        if (
+          timestamp >= new Date(window.start).getTime() &&
+          timestamp < new Date(window.end).getTime()
+        ) {
+          totalVolume += bar.v;
+          numberOfBars++;
+        }
+      }
+
+      if (!data.next_page_token) {
+        break;
+      }
+
+      url.searchParams.set("page_token", data.next_page_token);
+    }
+
+    return { volume: totalVolume, numberOfBars };
+  };
 
   const historicalVolumes = [];
 
-  const historicalResponse = await fetchWithRetry(
-    `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${historicalStartWindow.start}&end=${historicalEndWindow.end}&feed=iex`,
-    {
-      headers: {
-        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
-      },
-    },
-  );
-
-  if (!historicalResponse.ok) {
-    throw new Error(
-      `Alpaca historical bars request failed for ${symbol}: ${historicalResponse.status}`,
-    );
-  }
-
-  const historicalData = await historicalResponse.json();
-
-  if (!historicalData.bars || historicalData.bars.length === 0) {
-    return null;
-  }
-
-  for (const date of historicalDates) {
-    const marketWindow = getMarketOpenUtc(date);
-
-    const first30Minutes = historicalData.bars.filter((bar) => {
-      return bar.t >= marketWindow.start && bar.t < marketWindow.end;
-    });
-
-    if (first30Minutes.length === 0) {
-      continue;
-    }
-
-    const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
-      return total + bar.v;
-    }, 0);
-
-    historicalVolumes.push(first30MinuteVolume);
-  }
-
-  if (historicalVolumes.length === 0) {
-    return null;
-  }
-
-  const totalHistoricalVolume = historicalVolumes.reduce((total, volume) => {
-    return total + volume;
-  }, 0);
-
-  const averageHistoricalVolume =
-    totalHistoricalVolume / historicalVolumes.length;
-
-  const response = await fetchWithRetry(
-    `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=5Min&start=${testMarketWindow.start}&end=${testMarketWindow.end}&feed=iex`,
-    {
-      headers: {
-        "APCA-API-KEY-ID": process.env.ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY,
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Alpaca current bars request failed for ${symbol}: ${response.status}`,
-    );
-  }
-
-  const data = await response.json();
-
-  if (!data.bars || data.bars.length === 0) {
-    return null;
-  }
-
-  const first30Minutes = data.bars.filter((bar) => {
-    return bar.t >= testMarketWindow.start && bar.t < testMarketWindow.end;
+  console.log("RVOL historical data check:", {
+    symbol,
+    session: session.session,
+    historicalTradingDays: historicalDates.length,
+    elapsedMinutes,
   });
 
-  const first30MinuteVolume = first30Minutes.reduce((total, bar) => {
-    return total + bar.v;
-  }, 0);
+  for (const date of historicalDates) {
+    const result = await getVolume(date);
+    historicalVolumes.push(result.volume);
+  }
 
-  const rvol = first30MinuteVolume / averageHistoricalVolume;
+  console.log("RVOL VOLUME DEBUG:", {
+    symbol,
+    session: session.session,
+    historicalDays: historicalVolumes.length,
+    daysWithVolume: historicalVolumes.filter((volume) => volume > 0).length,
+    daysWithoutVolume: historicalVolumes.filter((volume) => volume === 0)
+      .length,
+  });
+
+  const averageHistoricalVolume =
+    historicalVolumes.reduce((sum, volume) => sum + volume, 0) /
+    historicalVolumes.length;
+
+  if (averageHistoricalVolume <= 0) {
+    return null;
+  }
+
+  const current = await getVolume(marketDate);
+
+  const rvol = current.volume / averageHistoricalVolume;
 
   return {
     symbol,
-    numberOfBars: first30Minutes.length,
-    first30MinuteVolume,
+    session: session.session,
+    numberOfBars: current.numberOfBars,
+    sessionVolume: current.volume,
     averageHistoricalVolume: Math.round(averageHistoricalVolume),
     rvol: Number(rvol.toFixed(2)),
   };
@@ -875,6 +1045,29 @@ app.get("/api/test-float/:symbol", async (req, res) => {
   } catch (error) {
     console.error("Float test error:", error);
     res.status(500).json({ error: "Failed to fetch float data" });
+  }
+});
+
+app.get("/api/test-rvol/:symbol", async (req, res) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase();
+
+    const result = await calculateRvol(symbol);
+
+    if (!result) {
+      return res.json({
+        symbol,
+        message: "RVOL data unavailable for the current session.",
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("RVOL test error:", error.message);
+
+    res.status(500).json({
+      error: error.message,
+    });
   }
 });
 
