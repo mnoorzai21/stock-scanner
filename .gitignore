@@ -10,3 +10,5 @@ node_modules/
 
 # Build output
 dist/
+# Allow the example env file
+!.env.example
