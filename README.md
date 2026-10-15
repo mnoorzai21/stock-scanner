@@ -1,159 +1,148 @@
 # Stock Scanner — Real-Time Momentum Scanner
 
-A full-stack stock momentum scanner built with **React, Vite, Node.js, and Express**. The application scans U.S. stocks for momentum opportunities using market data, trading volume, share float, and recent news.
+[![CI](https://github.com/mnoorzai21/stock-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/mnoorzai21/stock-scanner/actions/workflows/ci.yml)
+
+A full-stack momentum scanner for U.S. stocks built with **React, Vite, Node.js and Express**. It scans every tradable U.S. stock during premarket, regular and after-hours sessions and surfaces low-float stocks making big moves on heavy volume with a fresh news catalyst.
 
 **[Live Demo](https://mnoorzai21.github.io/stock-scanner/)**
 
 ## Features
 
-- **Momentum Scanner:** Screens stocks against five trading criteria.
-- **Market Data Integration:** Retrieves U.S. stock information using the Alpaca API.
-- **Relative Volume (RVOL):** Evaluates trading activity against historical volume.
-- **Float Filtering:** Uses SentiSense data to identify lower-float stocks.
-- **News Verification:** Requires recent news before a stock qualifies.
-- **Automatic Scanning:** Refreshes results approximately every two minutes while the application is running.
-- **Manual Scanning:** Includes a Scan Now button.
-- **Sound Alerts:** Plays different alerts for qualifying stocks reaching 20% and 30% gains.
-- **Responsive Dashboard:** Dark-themed React interface.
+- **Five-filter momentum scan** of roughly 10,000 U.S. stocks, run in the background every minute while the dashboard is open.
+- **Session-aware relative volume (RVOL):** compares volume so far in the current session with the same time window on each of the previous 20 trading days.
+- **Correct premarket % change:** measured against the previous session's close, even before the day's first regular-hours bar exists.
+- **Float filter** using Massive (formerly Polygon.io), with batched lookups and a 24-hour cache to stay within free-plan rate limits.
+- **News verification:** requires a news article from the last 24 hours and ignores generic "stocks moving" roundups.
+- **Sound and desktop alerts** at +20% (one beep) and +30% (two beeps), once per stock per day.
+- **Scan funnel** showing how many stocks passed each filter, so an empty result list is easy to understand.
+- **Responsive dark dashboard** with a card layout on phones and one-click chart links.
 
 ## Stock Selection Criteria
 
-A stock must meet **all five conditions** to appear in the results.
+A stock must meet **all five conditions** to appear. Each threshold can be changed with an environment variable.
 
-| Filter | Requirement |
-|---|---|
-| Price | $1–$20 |
-| Price Change | At least +20% |
-| Relative Volume | Greater than 5x |
-| Share Float | Below 20 million shares |
-| News | Recent news required |
-
-## Technology Stack
-
-**Frontend**
-- React
-- Vite
-- JavaScript
-- CSS
-
-**Backend**
-- Node.js
-- Express
-- REST API
-
-**External APIs**
-- Alpaca — market data and news
-- SentiSense — share float information
-
-**Deployment and Developer Tools**
-- GitHub Pages — frontend hosting
-- Render — backend hosting
-- GitHub Actions — automated frontend deployment
-- Git and GitHub
-- Visual Studio Code
-- npm
+| Filter          | Default requirement      | Variable             |
+| --------------- | ------------------------ | -------------------- |
+| Price           | $1–$20                   | `MIN_PRICE`, `MAX_PRICE` |
+| Price change    | At least +20%            | `MIN_CHANGE_PERCENT` |
+| Relative volume | Greater than 5x          | `MIN_RVOL`           |
+| Share float     | Below 20 million shares  | `MAX_FLOAT`          |
+| News            | Article in the last 24 hours | `NEWS_MAX_AGE_HOURS` |
 
 ## How It Works
 
-1. The React frontend requests scanner results from the Express backend.
-2. The backend retrieves market data from Alpaca.
-3. Stocks are evaluated against the price and momentum criteria.
-4. Volume, float, and news checks further filter the results.
-5. Qualified stocks appear in the dashboard.
-6. When sound alerts are enabled, qualifying stocks can trigger distinct sounds at the 20% and 30% thresholds.
+```
+React dashboard ──polls every 15s──▶ Express API ──▶ cached scan result
+                                        │
+                     background scan every 60s (while someone is watching)
+                                        │
+      1. Alpaca assets + snapshots  →  price and % change for every stock
+      2. Alpaca 5-minute bars       →  RVOL for the candidates (one batched request)
+      3. Massive float              →  share float (batched, cached for a day)
+      4. Alpaca news                →  fresh, non-generic catalyst
+```
 
-## Live Deployment
+The server runs one scan at a time and caches the result, so any number of open browser tabs share it instead of each triggering its own scan. Scanning pauses automatically after 10 minutes with no dashboard open, which avoids wasting API quota.
 
-**Frontend:** https://mnoorzai21.github.io/stock-scanner/
+## Technology Stack
 
-**Backend:** Node.js and Express hosted on Render.
-
-The frontend is deployed to GitHub Pages using GitHub Actions.
-The backend is deployed separately on Render.
-
-**Hosting note:** The backend uses Render's free service, which may sleep during inactivity. The first request after an idle period may take longer to complete.
+**Frontend:** React 19, Vite, JavaScript, CSS
+**Backend:** Node.js, Express 5, REST API, Node's built-in test runner
+**External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
+**Deployment:** GitHub Pages (frontend, via GitHub Actions), Render (backend)
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js and npm
-- Alpaca API credentials
-- SentiSense API credentials
+- Node.js 20 or newer
+- A free [Alpaca](https://alpaca.markets) account (API key and secret)
+- A free [Massive](https://massive.com) account (API key)
 
 ### Installation
-
-Clone the repository:
 
 ```bash
 git clone https://github.com/mnoorzai21/stock-scanner.git
 cd stock-scanner
-```
 
-Install frontend dependencies:
-
-```bash
-cd client
-npm install
-```
-
-Install backend dependencies:
-
-```bash
-cd ../server
-npm install
+cd server && npm install
+cd ../client && npm install
 ```
 
 ### Environment Variables
 
-Create a `.env` file inside the `server` directory:
+Copy the example file inside `server` and add your keys:
+
+```bash
+cd server
+cp .env.example .env
+```
 
 ```env
 ALPACA_API_KEY=your_alpaca_api_key
 ALPACA_SECRET_KEY=your_alpaca_secret_key
-SENTISENSE_API_KEY=your_sentisense_api_key
+MASSIVE_API_KEY=your_massive_api_key
 ```
 
-Keep your API credentials private. Never commit the backend `.env` file.
+`.env.example` also lists optional settings such as the filter thresholds, scan interval and market data feed. Never commit your `.env` file.
 
 ### Run Locally
 
-Start the backend from the `server` directory:
+Start the backend:
 
 ```bash
-node server.js
-```
-
-In a separate terminal, start the frontend from the `client` directory:
-
-```bash
+cd server
 npm run dev
 ```
 
-Open the local URL provided by Vite, usually:
+In a second terminal, start the frontend:
 
-http://localhost:5173
+```bash
+cd client
+npm run dev
+```
 
-The frontend connects to the local backend at:
+Open http://localhost:5173. The frontend talks to the backend at http://localhost:3000 unless `VITE_API_URL` is set.
 
-http://localhost:3000
+### Run Tests
 
-## Current Limitations
+```bash
+cd server
+npm test
+```
 
-- Market data availability, coverage, and timeliness depend on API providers and subscriptions.
-- Stocks that do not meet every filter are excluded.
-- Browser sound alerts require user interaction and may be affected by browser restrictions.
-- Alerts operate while the web application is running; they are not server-side push notifications.
-- The Render free service may introduce delays after inactivity.
-- The application is designed for momentum research and does not execute trades.
+The tests cover market-hours and daylight-saving logic, RVOL windows, premarket % change, news filtering, retries and rate limits, API batching and caching, and a full scan against a simulated market. CI runs them, plus the frontend lint and build, on every push and pull request.
+
+## API
+
+| Method | Endpoint                    | Description                                   |
+| ------ | --------------------------- | --------------------------------------------- |
+| GET    | `/api/scanner`              | Latest cached scan, filter funnel and status  |
+| POST   | `/api/scan`                 | Request a scan now (limited to one per 15s)   |
+| GET    | `/api/health`               | Which API keys are configured, feed, session  |
+| GET    | `/api/test-scanner`         | Run a scan and return only the results        |
+| GET    | `/api/test-rvol/:symbol`    | RVOL for one symbol                           |
+| GET    | `/api/test-float/:symbol`   | Float for one symbol                          |
+| GET    | `/api/test-news/:symbol`    | Latest qualifying news for one symbol         |
+
+## Live Deployment
+
+**Frontend:** https://mnoorzai21.github.io/stock-scanner/ (deployed by GitHub Actions on every push to `main`)
+
+**Backend:** Render. Set `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` and `MASSIVE_API_KEY` in the Render dashboard and use `npm start` as the start command from the `server` directory. Render's free plan sleeps when idle, so the first request after a break can take about a minute.
+
+## Using It for Live Trading
+
+- **Market data feed:** Alpaca's free plan provides the **IEX** feed, which covers a single exchange. Prices and volume for thinly traded small caps can lag the full market, and some stocks may be missed. For full-market data, subscribe to Alpaca's SIP feed and set `ALPACA_FEED=sip`.
+- **Alerts** run in the browser, so keep the dashboard tab open. Click **Enable Alerts** once per visit so the browser allows sound.
+- Always confirm a setup on your broker's chart before trading.
 
 ## Future Improvements
 
-- Mobile notifications
+- Mobile push notifications
 - Historical scanner results
-- Customizable scanner filters
-- More extensive automated testing
-- Improved market data coverage and monitoring
+- Filter settings editable from the dashboard
+- Streaming quotes via Alpaca's WebSocket API
 
 ## Disclaimer
 
