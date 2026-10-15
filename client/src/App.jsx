@@ -1,225 +1,258 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
+import { useScanner } from "./useScanner";
+import { playAlertSound, showNotification, unlockAlerts } from "./lib/alerts";
+import {
+  SESSION_LABELS,
+  formatAge,
+  formatCompact,
+  formatTime,
+} from "./lib/format";
+
+const DEFAULT_CRITERIA = {
+  minPrice: 1,
+  maxPrice: 20,
+  minChangePercent: 20,
+  minRvol: 5,
+  maxFloat: 20_000_000,
+};
+
+function CriteriaChips({ criteria }) {
+  return (
+    <div className="chips" aria-label="Scanner criteria">
+      <span>
+        Price <strong>${criteria.minPrice}–${criteria.maxPrice}</strong>
+      </span>
+      <span>
+        Gain <strong>{criteria.minChangePercent}%+</strong>
+      </span>
+      <span>
+        RVOL <strong>&gt;{criteria.minRvol}x</strong>
+      </span>
+      <span>
+        Float <strong>&lt;{formatCompact(criteria.maxFloat)}</strong>
+      </span>
+      <span>
+        News <strong>Required</strong>
+      </span>
+    </div>
+  );
+}
+
+function Funnel({ stats }) {
+  if (!stats || stats.symbolsScanned === undefined) {
+    return null;
+  }
+
+  const steps = [
+    ["traded today", stats.tradedToday],
+    ["price & gain", stats.priceAndGain],
+    ["RVOL", stats.rvol],
+    ["float", stats.float],
+    ["news", stats.news],
+  ].filter(([, count]) => count !== undefined);
+
+  return (
+    <ol className="funnel" aria-label="How many stocks passed each filter">
+      {steps.map(([label, count]) => (
+        <li key={label}>
+          <strong>{count.toLocaleString()}</strong> {label}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ResultsTable({ stocks }) {
+  return (
+    <div className="stock-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Price</th>
+            <th>Change</th>
+            <th>RVOL</th>
+            <th>Volume</th>
+            <th>Float</th>
+            <th>News</th>
+          </tr>
+        </thead>
+        <tbody>
+          {stocks.map((stock) => (
+            <tr key={stock.symbol} className={stock.change >= 30 ? "big-mover" : ""}>
+              <td data-label="Symbol">
+                <a
+                  className="symbol"
+                  href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stock.symbol)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open chart">
+                  {stock.symbol}
+                </a>
+              </td>
+              <td data-label="Price">${stock.price.toFixed(2)}</td>
+              <td data-label="Change" className="gain">
+                +{stock.change.toFixed(1)}%
+              </td>
+              <td data-label="RVOL">{stock.rvol.toFixed(1)}x</td>
+              <td data-label="Volume">{formatCompact(stock.sessionVolume)}</td>
+              <td data-label="Float">{stock.floatMillions.toFixed(1)}M</td>
+              <td data-label="News" className="news">
+                <a href={stock.newsUrl} target="_blank" rel="noopener noreferrer">
+                  {stock.headline}
+                </a>
+                <span className="muted">
+                  {[stock.newsSource, formatAge(stock.newsAgeInHours)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function App() {
+  const { state, loading, connectionError, scanNow } = useScanner();
   const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const [stocks, setStocks] = useState([]);
+  const [alertNote, setAlertNote] = useState("");
+  const alertedKeys = useRef(new Set());
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const lastScan = state?.lastScan;
+  const results = lastScan?.results;
+  const scanning = Boolean(state?.scanning);
+  const criteria = lastScan?.criteria || DEFAULT_CRITERIA;
+  const sessionLabel = lastScan?.session
+    ? SESSION_LABELS[lastScan.session]
+    : lastScan
+      ? "Closed"
+      : null;
 
-  const SCAN_INTERVAL = 120000;
-  const timeoutRef = useRef(null);
-  const isActiveRef = useRef(true);
-  const isScanningRef = useRef(false);
-
-  const runScanner = () => {
-    if (isScanningRef.current) return;
-    clearTimeout(timeoutRef.current);
-    isScanningRef.current = true;
-    fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/test-scanner`,
-    )
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Scanner request failed: ${response.status}`);
-        }
-
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Scanner data: ", data);
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid scanner data received");
-        }
-        isScanningRef.current = false;
-        if (!isActiveRef.current) return;
-        setStocks(data);
-        setLoading(false);
-        setError("");
-        setLastUpdated(new Date());
-        timeoutRef.current = setTimeout(runScanner, SCAN_INTERVAL);
-      })
-      .catch((error) => {
-        console.error("Scanner error:", error);
-        isScanningRef.current = false;
-        if (!isActiveRef.current) return;
-        setLoading(false);
-        setError("Unable to connect to the stock scanner.");
-        timeoutRef.current = setTimeout(runScanner, SCAN_INTERVAL);
-      });
-  };
-
+  // Alert once per stock per level per day.
   useEffect(() => {
-    isActiveRef.current = true;
-    runScanner();
-    return () => {
-      isActiveRef.current = false;
-      clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  const alertedStocks = useRef(new Set());
-
-  const playAlertSound = (level) => {
-    const audioContext = new AudioContext();
-
-    const playBeep = (frequency, startTime, duration) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.frequency.value = frequency;
-      oscillator.type = "sine";
-
-      gainNode.gain.setValueAtTime(0.6, startTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    };
-
-    const now = audioContext.currentTime;
-
-    if (level === 20) {
-      // One short beep for stocks gaining at least 20%.
-      playBeep(600, now, 0.2);
-    } else if (level === 30) {
-      // Two higher-pitched beeps for stocks gaining at least 30%.
-      playBeep(1000, now, 0.2);
-      playBeep(1000, now + 0.3, 0.2);
-    }
-  };
-
-  const filteredStocks = stocks.filter((stock) => {
-    return (
-      stock.price >= 1 &&
-      stock.price <= 20 &&
-      stock.change >= 20 &&
-      stock.rvol > 5 &&
-      stock.float < 20_000_000 &&
-      stock.hasNews &&
-      stock.isFreshNews
-    );
-  });
-
-  useEffect(() => {
-    if (!alertsEnabled) {
+    if (!alertsEnabled || !results) {
       return;
     }
 
-    filteredStocks.forEach((stock) => {
-      const alertedLevels = alertedStocks.current;
+    const day = lastScan.startedAt.slice(0, 10);
 
-      if (stock.change >= 30) {
-        const alertKey = `${stock.symbol}-30`;
+    for (const stock of results) {
+      const level = stock.change >= 30 ? 30 : 20;
+      const key = `${day}:${stock.symbol}:${level}`;
 
-        if (!alertedLevels.has(alertKey)) {
-          playAlertSound(30);
-          alertedLevels.add(alertKey);
-          alertedLevels.add(`${stock.symbol}-20`);
-        }
-      } else if (stock.change >= 20) {
-        const alertKey = `${stock.symbol}-20`;
-
-        if (!alertedLevels.has(alertKey)) {
-          playAlertSound(20);
-          alertedLevels.add(alertKey);
-        }
+      if (!alertedKeys.current.has(key)) {
+        alertedKeys.current.add(key);
+        alertedKeys.current.add(`${day}:${stock.symbol}:20`);
+        playAlertSound(level);
+        showNotification(stock);
       }
-    });
-  }, [alertsEnabled, filteredStocks]);
+    }
+  }, [alertsEnabled, results, lastScan]);
+
+  const toggleAlerts = async () => {
+    if (alertsEnabled) {
+      setAlertsEnabled(false);
+      setAlertNote("");
+      return;
+    }
+
+    try {
+      const { sound, notifications } = await unlockAlerts();
+      setAlertsEnabled(true);
+      playAlertSound(20);
+      setAlertNote(
+        [
+          sound ? "Sound on" : "Sound blocked by the browser",
+          notifications
+            ? "desktop notifications on"
+            : "desktop notifications off",
+        ].join(", ") + ". Keep this tab open.",
+      );
+    } catch (error) {
+      console.error(error);
+      setAlertNote("Your browser blocked alerts.");
+    }
+  };
 
   return (
     <div className="app">
       <header className="header">
-        <h1>Stock Scanner</h1>
-        <p>Real-Time Momentum Scanner</p>
+        <div>
+          <h1>Stock Scanner</h1>
+          <p>Real-time momentum scanner for U.S. stocks</p>
+        </div>
+        {sessionLabel && (
+          <span className={`session session-${lastScan?.session || "closed"}`}>
+            {sessionLabel}
+          </span>
+        )}
       </header>
 
       <main>
         <section className="scanner">
-          <h2>Scanner Results</h2>
-          {lastUpdated && (
-            <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
+          <div className="toolbar">
+            <div>
+              <h2>Scanner Results</h2>
+              <p className="muted">
+                {lastScan
+                  ? `Last scan ${formatTime(lastScan.finishedAt)} · ${(lastScan.durationMs / 1000).toFixed(1)}s · ${lastScan.feed.toUpperCase()} feed`
+                  : "Waiting for the first scan…"}
+              </p>
+            </div>
+            <div className="buttons">
+              <button type="button" onClick={scanNow} disabled={scanning}>
+                {scanning ? "Scanning…" : "Scan Now"}
+              </button>
+              <button
+                type="button"
+                className={alertsEnabled ? "active" : ""}
+                aria-pressed={alertsEnabled}
+                onClick={toggleAlerts}>
+                {alertsEnabled ? "🔔 Alerts On" : "Enable Alerts"}
+              </button>
+            </div>
+          </div>
+
+          {alertNote && <p className="note">{alertNote}</p>}
+
+          <CriteriaChips criteria={criteria} />
+          <Funnel stats={lastScan?.stats} />
+
+          {connectionError && <p className="banner error">{connectionError}</p>}
+          {state?.lastError && (
+            <p className="banner error">
+              Last scan failed: {state.lastError.message}
+            </p>
           )}
-          <button className="alert-button" onClick={runScanner}>
-            Scan Now
-          </button>
-          <button
-            className="alert-button"
-            onClick={() => {
-              setAlertsEnabled(!alertsEnabled);
-            }}>
-            {alertsEnabled ? "🔔 Alerts Enabled" : "Enable Alerts"}
-          </button>
+          {lastScan?.warnings?.map((warning) => (
+            <p key={warning} className="banner warning">
+              {warning}
+            </p>
+          ))}
 
-          <div className="scanner-filters">
-            <span>
-              Price: <strong>$1–$20</strong>
-            </span>
-            <span>
-              Gain: <strong>20%+</strong>
-            </span>
-            <span>
-              RVOL: <strong>5x+</strong>
-            </span>
-            <span>
-              Float: <strong>Under 20M</strong>
-            </span>
-            <span>
-              News: <strong>Required</strong>
-            </span>
-          </div>
+          {loading ? (
+            <p className="empty">Connecting to scanner…</p>
+          ) : lastScan?.message ? (
+            <p className="empty">{lastScan.message}</p>
+          ) : results?.length ? (
+            <ResultsTable stocks={results} />
+          ) : (
+            lastScan && (
+              <p className="empty">No stocks match all five criteria right now.</p>
+            )
+          )}
 
-          <div className="stock-table">
-            {loading && <p>Scanning market...</p>}
-            {error && <p>{error}</p>}
-            <table>
-              <thead>
-                <tr>
-                  <th>Symbol</th>
-                  <th>Price</th>
-                  <th>Change</th>
-                  <th>RVOL</th>
-                  <th>Float</th>
-                  <th>News</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {!loading && !error && filteredStocks.length === 0 && (
-                  <tr>
-                    <td colSpan="6">
-                      No stocks currently match all scanner criteria.
-                    </td>
-                  </tr>
-                )}
-                {filteredStocks.map((stock) => (
-                  <tr
-                    key={stock.symbol}
-                    className={stock.change >= 30 ? "big-mover" : ""}>
-                    <td data-label="Symbol">{stock.symbol}</td>
-                    <td data-label="Price">${stock.price.toFixed(2)}</td>
-                    <td data-label="Change">+{stock.change}%</td>
-                    <td data-label="RVOL">{stock.rvol}</td>
-                    <td data-label="Float">{stock.floatMillions}M</td>
-                    <td data-label="News">
-                      <a
-                        href={stock.newsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer">
-                        {stock.headline}
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {lastScan?.feed === "iex" && (
+            <p className="footnote">
+              Using Alpaca's free IEX feed, which covers one exchange. Prices
+              and volume on thinly traded small caps can lag the full market.
+              Always confirm on your broker's chart before trading.
+            </p>
+          )}
         </section>
       </main>
     </div>
