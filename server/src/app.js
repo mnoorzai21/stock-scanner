@@ -90,7 +90,10 @@ function createApp({ service, alpaca, floats, config }) {
     try {
       const articles = await alpaca.getNews(symbol);
       res.json(
-        summarizeNews(articles, { maxAgeHours: config.criteria.newsMaxAgeHours }),
+        summarizeNews(articles, {
+          symbol,
+          maxAgeHours: config.criteria.newsMaxAgeHours,
+        }),
       );
     } catch (error) {
       sendError(res, error, "Failed to fetch stock news");
