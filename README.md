@@ -12,7 +12,7 @@ A full-stack momentum scanner for U.S. stocks built with **React, Vite, Node.js 
 - **Session-aware relative volume (RVOL):** compares volume so far in the current session with the same time window on each of the previous 20 trading days.
 - **Correct premarket % change:** measured against the previous session's close, even before the day's first regular-hours bar exists.
 - **Float filter** using Massive (formerly Polygon.io), with batched lookups and a 24-hour cache to stay within free-plan rate limits.
-- **News verification:** requires a news article from the last 24 hours and ignores generic "stocks moving" roundups.
+- **News verification:** requires a news article from the last 24 hours that is actually about the stock. Market roundups that only tag it, and "why is it moving" articles, are ignored.
 - **Sound and desktop alerts** at +20% (one beep) and +30% (two beeps), once per stock per day.
 - **Scan funnel** showing how many stocks passed each filter, so an empty result list is easy to understand.
 - **Responsive dark dashboard** with a card layout on phones and one-click chart links.

@@ -12,14 +12,50 @@ const GENERIC_HEADLINE_PATTERNS = [
   /\bmarket movers\b/i,
   /\bwhy .* stock is (up|down|moving)\b/i,
   /\bmid-day (gainers|losers)\b/i,
+  /\bwhat'?s behind the move\b/i,
 ];
+
+// Articles tagged with more symbols than this are treated as market
+// roundups unless the headline names the stock.
+const MAX_SYMBOLS_FOR_DEDICATED_ARTICLE = 3;
 
 function isGenericHeadline(headline = "") {
   return GENERIC_HEADLINE_PATTERNS.some((pattern) => pattern.test(headline));
 }
 
-// Pick the newest fresh, non-generic article from a list.
-function summarizeNews(articles, { now = Date.now(), maxAgeHours = 24 } = {}) {
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// True when the article is about this stock, not a roundup that only
+// happens to tag it: the ticker is in the headline, or the article is
+// tagged with only a few symbols including this one.
+function isAboutSymbol(article, symbol) {
+  if (!symbol) {
+    return true;
+  }
+
+  const tickerInHeadline = new RegExp(
+    `(^|[^A-Za-z0-9])${escapeRegExp(symbol)}([^A-Za-z0-9]|$)`,
+  ).test(article.headline || "");
+
+  if (tickerInHeadline) {
+    return true;
+  }
+
+  const symbols = Array.isArray(article.symbols) ? article.symbols : [];
+
+  return (
+    symbols.includes(symbol) &&
+    symbols.length <= MAX_SYMBOLS_FOR_DEDICATED_ARTICLE
+  );
+}
+
+// Pick the newest fresh article that is specifically about the stock.
+function summarizeNews(
+  articles,
+  { symbol, now = Date.now(), maxAgeHours = 24 } = {},
+) {
   const ageHours = (article) =>
     (now - new Date(article.created_at).getTime()) / 3_600_000;
 
@@ -30,7 +66,8 @@ function summarizeNews(articles, { now = Date.now(), maxAgeHours = 24 } = {}) {
       Number.isFinite(age) &&
       age >= -0.1 &&
       age <= maxAgeHours &&
-      !isGenericHeadline(article.headline)
+      !isGenericHeadline(article.headline) &&
+      isAboutSymbol(article, symbol)
     );
   });
 
@@ -63,4 +100,9 @@ function summarizeNews(articles, { now = Date.now(), maxAgeHours = 24 } = {}) {
   };
 }
 
-module.exports = { GENERIC_HEADLINE_PATTERNS, isGenericHeadline, summarizeNews };
+module.exports = {
+  GENERIC_HEADLINE_PATTERNS,
+  isGenericHeadline,
+  isAboutSymbol,
+  summarizeNews,
+};

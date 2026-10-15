@@ -185,6 +185,7 @@ function createScanner({
         try {
           const articles = await alpaca.getNews(stock.symbol);
           const news = summarizeNews(articles, {
+            symbol: stock.symbol,
             now: startedAt.getTime(),
             maxAgeHours: criteria.newsMaxAgeHours,
           });

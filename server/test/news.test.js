@@ -35,6 +35,57 @@ test("rejects old and generic-only news", () => {
   assert.equal(result.headline, null);
 });
 
+test("ignores market roundups that only tag the stock", () => {
+  const roundup = {
+    headline: "Crude Oil Moves Higher; Charles Schwab Shares Fall After Q3 Results",
+    created_at: hoursAgo(5),
+    symbols: ["SCHW", "WETO", "USO", "AAPL", "TSLA", "NVDA"],
+  };
+
+  const result = summarizeNews([roundup], { symbol: "WETO", now });
+
+  assert.equal(result.hasNews, true);
+  assert.equal(result.isFresh, false);
+});
+
+test("accepts dedicated articles about the stock", () => {
+  const byTicker = summarizeNews(
+    [
+      {
+        headline: "Netcapital (NCPL) wins contract with major bank",
+        created_at: hoursAgo(2),
+        symbols: ["NCPL", "JPM", "BAC", "C", "WFC"],
+      },
+    ],
+    { symbol: "NCPL", now },
+  );
+  assert.equal(byTicker.isFresh, true);
+
+  const pressRelease = summarizeNews(
+    [{ headline: "Netcapital Announces Q2 Results", created_at: hoursAgo(2), symbols: ["NCPL"] }],
+    { symbol: "NCPL", now },
+  );
+  assert.equal(pressRelease.isFresh, true);
+});
+
+test("matches the ticker as a whole word only", () => {
+  const result = summarizeNews(
+    [{ headline: "AIRLINES rally on lower fuel costs", created_at: hoursAgo(1), symbols: ["AAL", "DAL", "UAL", "LUV", "AI"] }],
+    { symbol: "AI", now },
+  );
+
+  assert.equal(result.isFresh, false);
+});
+
+test("treats 'what's behind the move' articles as generic", () => {
+  const result = summarizeNews(
+    [{ headline: "ABCD Stock Climbs 19% After Hours: What's Behind the Move?", created_at: hoursAgo(1), symbols: ["ABCD"] }],
+    { symbol: "ABCD", now },
+  );
+
+  assert.equal(result.isFresh, false);
+});
+
 test("handles no articles", () => {
   assert.equal(summarizeNews([], { now }).hasNews, false);
 });
