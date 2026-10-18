@@ -1,14 +1,16 @@
-const { getTradingSession, toEasternDate } = require("./marketTime");
+const { getMarketStatus, toEasternDate } = require("./marketTime");
 const { getRvolContext, computeRvol } = require("./rvol");
 const { summarizeNews } = require("./news");
 const { mapWithConcurrency } = require("./alpaca");
 
 const CALENDAR_LOOKBACK_DAYS = 45;
+// Far enough ahead to find the next open across a weekend plus holidays.
+const CALENDAR_LOOKAHEAD_DAYS = 10;
 const NEWS_CONCURRENCY = 4;
 
-function daysBefore(date, days) {
+function addDays(date, days) {
   const result = new Date(`${date}T12:00:00Z`);
-  result.setUTCDate(result.getUTCDate() - days);
+  result.setUTCDate(result.getUTCDate() + days);
 
   return result.toISOString().slice(0, 10);
 }
@@ -59,7 +61,9 @@ function createScanner({
 }) {
   async function scan() {
     const startedAt = now();
-    const session = getTradingSession(startedAt);
+    const marketDate = toEasternDate(startedAt);
+    let session = null;
+    let nextOpen = null;
     const stats = {};
     const warnings = [];
 
@@ -67,6 +71,7 @@ function createScanner({
       startedAt: startedAt.toISOString(),
       finishedAt: now().toISOString(),
       session: session?.session || null,
+      nextOpen,
       feed: alpaca.feed,
       criteria,
       stats,
@@ -80,21 +85,24 @@ function createScanner({
       throw new Error("ALPACA_API_KEY and ALPACA_SECRET_KEY must be set");
     }
 
+    // The trading calendar decides whether markets are open, so weekends
+    // and holidays show as closed instead of going by the clock alone.
+    const calendar = await alpaca.getCalendar(
+      addDays(marketDate, -CALENDAR_LOOKBACK_DAYS),
+      addDays(marketDate, CALENDAR_LOOKAHEAD_DAYS),
+    );
+
+    ({ session, nextOpen } = getMarketStatus(startedAt, calendar));
+
+    if (!calendar.some((day) => day.date === marketDate)) {
+      return report({ message: "U.S. markets are closed today." });
+    }
+
     if (!session) {
       return report({
         message:
           "Markets are closed. The scanner runs 4:00 AM-8:00 PM ET on trading days.",
       });
-    }
-
-    const marketDate = toEasternDate(startedAt);
-    const calendar = await alpaca.getCalendar(
-      daysBefore(marketDate, CALENDAR_LOOKBACK_DAYS),
-      marketDate,
-    );
-
-    if (!calendar.some((day) => day.date === marketDate)) {
-      return report({ message: "U.S. markets are closed today." });
     }
 
     // Stage 1: price and % gain from snapshots.
@@ -117,7 +125,7 @@ function createScanner({
     stats.priceAndGain = movers.length;
 
     // Stage 2: relative volume.
-    const rvolContext = getRvolContext(startedAt, calendar);
+    const rvolContext = getRvolContext(startedAt, calendar, session);
 
     if (!rvolContext.windows) {
       return report({ message: rvolContext.reason });
