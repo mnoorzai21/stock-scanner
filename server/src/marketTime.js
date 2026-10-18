@@ -71,10 +71,76 @@ function getTradingSession(now = new Date()) {
   );
 }
 
+// Parse an Alpaca calendar time ("09:30" or "0930") into minutes after midnight.
+function parseCalendarTime(value, fallback) {
+  const match = /^(\d{1,2}):?(\d{2})$/.exec(String(value ?? "").trim());
+
+  return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
+}
+
+// The pre-market, regular and after-hours sessions for one Alpaca calendar
+// day. Uses the calendar's own times, so early-close days (1:00 PM ET) end
+// the regular session and after-hours at the right time.
+function sessionsForDay(day) {
+  const [premarket, regular, afterhours] = SESSIONS;
+  const sessionOpen = parseCalendarTime(day.session_open, premarket.startMinutes);
+  const open = parseCalendarTime(day.open, regular.startMinutes);
+  const close = parseCalendarTime(day.close, regular.endMinutes);
+  const sessionClose = parseCalendarTime(day.session_close, afterhours.endMinutes);
+
+  return [
+    { session: "premarket", startMinutes: sessionOpen, endMinutes: open },
+    { session: "regular", startMinutes: open, endMinutes: close },
+    { session: "afterhours", startMinutes: close, endMinutes: sessionClose },
+  ].filter(({ startMinutes, endMinutes }) => endMinutes > startMinutes);
+}
+
+// The market's status at `now`, using Alpaca's trading calendar so weekends
+// and holidays count as closed.
+//
+// Returns { session, nextOpen }:
+//   session  - the active session object, or null when markets are closed
+//   nextOpen - when the next session starts (ISO string), or null if the
+//              calendar doesn't reach far enough to know
+function getMarketStatus(now, calendar) {
+  const marketDate = toEasternDate(now);
+  const nowMs = new Date(now).getTime();
+  const today = calendar.find((day) => day.date === marketDate);
+  const session = today
+    ? sessionsForDay(today).find(({ startMinutes, endMinutes }) => {
+        const minutes = easternMinutes(now);
+
+        return minutes >= startMinutes && minutes < endMinutes;
+      }) || null
+    : null;
+
+  let nextOpen = null;
+
+  if (!session) {
+    const upcoming = calendar
+      .filter((day) => day.date >= marketDate)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    for (const day of upcoming) {
+      const [first] = sessionsForDay(day);
+      const start = first && easternTimeToUtc(day.date, first.startMinutes);
+
+      if (start && start.getTime() > nowMs) {
+        nextOpen = start.toISOString();
+        break;
+      }
+    }
+  }
+
+  return { session, nextOpen };
+}
+
 module.exports = {
   SESSIONS,
   toEasternDate,
   easternMinutes,
   easternTimeToUtc,
   getTradingSession,
+  sessionsForDay,
+  getMarketStatus,
 };

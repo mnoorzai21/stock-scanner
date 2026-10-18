@@ -6,6 +6,7 @@ import {
   SESSION_LABELS,
   formatAge,
   formatCompact,
+  formatNextOpen,
   formatTime,
 } from "./lib/format";
 
@@ -126,11 +127,8 @@ function App() {
   const results = lastScan?.results;
   const scanning = Boolean(state?.scanning);
   const criteria = lastScan?.criteria || DEFAULT_CRITERIA;
-  const sessionLabel = lastScan?.session
-    ? SESSION_LABELS[lastScan.session]
-    : lastScan
-      ? "Closed"
-      : null;
+  const sessionKey = lastScan?.session || "closed";
+  const nextOpen = sessionKey === "closed" ? formatNextOpen(lastScan?.nextOpen) : "";
 
   // Alert once per stock per level per day.
   useEffect(() => {
@@ -185,9 +183,10 @@ function App() {
           <h1>Stock Scanner</h1>
           <p>Real-time momentum scanner for U.S. stocks</p>
         </div>
-        {sessionLabel && (
-          <span className={`session session-${lastScan?.session || "closed"}`}>
-            {sessionLabel}
+        {lastScan && (
+          <span className={`session session-${sessionKey}`} role="status">
+            {SESSION_LABELS[sessionKey]}
+            {nextOpen && <span className="session-next">Opens {nextOpen}</span>}
           </span>
         )}
       </header>

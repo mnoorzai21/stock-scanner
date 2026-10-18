@@ -15,8 +15,10 @@ const BAR_MINUTES = 5;
 //
 // Example: at 10:12 AM, today's 9:30-10:10 volume is compared with the
 // 9:30-10:10 volume on each of the previous 20 trading days.
-function getRvolContext(now, calendar) {
-  const session = getTradingSession(now);
+//
+// `session` defaults to the clock-based session; the scanner passes the one
+// from the trading calendar so early-close days use the right windows.
+function getRvolContext(now, calendar, session = getTradingSession(now)) {
 
   if (!session) {
     return { reason: "Markets are closed" };

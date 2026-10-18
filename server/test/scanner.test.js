@@ -220,6 +220,24 @@ test("skips the market data calls when markets are closed", async () => {
   assert.match(report.message, /Markets are closed/);
 });
 
+test("reports markets closed on weekends even during regular hours", async () => {
+  const { alpaca, floats } = fakeMarket();
+  alpaca.getCalendar = async () => weekdayCalendar("2026-09-01", "2026-10-28");
+  alpaca.getSnapshots = async () => assert.fail("should not fetch snapshots");
+
+  const report = await createScanner({
+    alpaca,
+    floats,
+    criteria,
+    // Sunday, October 18, 2026 at 11:56 AM ET.
+    now: () => new Date("2026-10-18T15:56:00Z"),
+  }).scan();
+
+  assert.equal(report.session, null);
+  assert.equal(report.nextOpen, "2026-10-19T08:00:00.000Z");
+  assert.equal(report.message, "U.S. markets are closed today.");
+});
+
 test("scan service shares one in-flight scan and caches the result", async () => {
   let scans = 0;
   let finish;
