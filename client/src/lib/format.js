@@ -26,7 +26,22 @@ export function formatTime(iso) {
 }
 
 export const SESSION_LABELS = {
-  premarket: "Premarket",
+  premarket: "Pre-market",
   regular: "Market open",
-  afterhours: "After hours",
+  afterhours: "After-hours",
+  closed: "Market closed",
 };
+
+// "Mon 1:00 AM PDT" in the viewer's own time zone.
+export function formatNextOpen(iso) {
+  if (!iso) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(iso));
+}
