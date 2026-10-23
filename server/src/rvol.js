@@ -56,10 +56,15 @@ function getRvolContext(now, calendar, session = getTradingSession(now)) {
   }
 
   const windows = new Map();
+  // The whole session on each previous day, used when the matching window
+  // had no volume (common for quiet stocks on a single-exchange feed).
+  const fullSessions = new Map();
+  const sessionMinutes = session.endMinutes - session.startMinutes;
 
   for (const date of [...historicalDates, marketDate]) {
     const start = easternTimeToUtc(date, session.startMinutes).getTime();
     windows.set(date, { start, end: start + elapsedMinutes * 60_000 });
+    fullSessions.set(date, { start, end: start + sessionMinutes * 60_000 });
   }
 
   return {
@@ -68,47 +73,93 @@ function getRvolContext(now, calendar, session = getTradingSession(now)) {
     historicalDates,
     elapsedMinutes,
     windows,
+    fullSessions,
     rangeStart: new Date(windows.get(historicalDates[0]).start).toISOString(),
     rangeEnd: new Date(windows.get(marketDate).end).toISOString(),
   };
 }
 
 // Calculate RVOL for one symbol from its 5-minute bars.
-function computeRvol(bars, context) {
-  const volumeByDate = new Map();
+//
+// Returns one of:
+//   { basis: "window", rvol, ... }   today vs the same window on past days
+//   { basis: "session", rvol, ... }  that window was empty on every past day,
+//                                    so today so far is compared with the
+//                                    average full session (conservative)
+//   { basis: "none", rvol: null, noHistory: true, ... }
+//                                    no volume at all in the past 20 days,
+//                                    but at least `minNoHistoryVolume`
+//                                    shares traded today
+//   null                             nothing usable
+function computeRvol(bars, context, { minNoHistoryVolume = Infinity } = {}) {
+  const windowVolume = new Map();
+  const sessionVolumeByDate = new Map();
 
   for (const date of context.windows.keys()) {
-    volumeByDate.set(date, 0);
+    windowVolume.set(date, 0);
+    sessionVolumeByDate.set(date, 0);
   }
+
+  const fullSessions = context.fullSessions || new Map();
 
   for (const bar of bars || []) {
     const time = Date.parse(bar.t);
     const date = toEasternDate(time);
     const window = context.windows.get(date);
+    const fullSession = fullSessions.get(date);
 
     if (window && time >= window.start && time < window.end) {
-      volumeByDate.set(date, volumeByDate.get(date) + bar.v);
+      windowVolume.set(date, windowVolume.get(date) + bar.v);
+    }
+
+    if (fullSession && time >= fullSession.start && time < fullSession.end) {
+      sessionVolumeByDate.set(date, sessionVolumeByDate.get(date) + bar.v);
     }
   }
 
-  const historical = context.historicalDates.map((date) =>
-    volumeByDate.get(date),
-  );
-  const average =
-    historical.reduce((sum, volume) => sum + volume, 0) / historical.length;
+  const sessionVolume = windowVolume.get(context.marketDate);
+  const averageOf = (volumes) =>
+    context.historicalDates.reduce((sum, date) => sum + volumes.get(date), 0) /
+    context.historicalDates.length;
+  const daysWithVolume = (volumes) =>
+    context.historicalDates.filter((date) => volumes.get(date) > 0).length;
 
-  if (!(average > 0)) {
-    return null;
+  const windowAverage = averageOf(windowVolume);
+
+  if (windowAverage > 0) {
+    return {
+      basis: "window",
+      rvol: Number((sessionVolume / windowAverage).toFixed(2)),
+      sessionVolume,
+      averageHistoricalVolume: Math.round(windowAverage),
+      daysWithVolume: daysWithVolume(windowVolume),
+    };
   }
 
-  const sessionVolume = volumeByDate.get(context.marketDate);
+  const sessionAverage = averageOf(sessionVolumeByDate);
 
-  return {
-    rvol: Number((sessionVolume / average).toFixed(2)),
-    sessionVolume,
-    averageHistoricalVolume: Math.round(average),
-    daysWithVolume: historical.filter((volume) => volume > 0).length,
-  };
+  if (sessionAverage > 0) {
+    return {
+      basis: "session",
+      rvol: Number((sessionVolume / sessionAverage).toFixed(2)),
+      sessionVolume,
+      averageHistoricalVolume: Math.round(sessionAverage),
+      daysWithVolume: daysWithVolume(sessionVolumeByDate),
+    };
+  }
+
+  if (sessionVolume > 0 && sessionVolume >= minNoHistoryVolume) {
+    return {
+      basis: "none",
+      rvol: null,
+      noHistory: true,
+      sessionVolume,
+      averageHistoricalVolume: 0,
+      daysWithVolume: 0,
+    };
+  }
+
+  return null;
 }
 
 module.exports = { HISTORY_DAYS, getRvolContext, computeRvol };

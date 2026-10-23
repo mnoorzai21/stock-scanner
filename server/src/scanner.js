@@ -142,15 +142,26 @@ function createScanner({
         )
       : {};
 
-    const highRvol = movers
-      .map((stock) => {
-        const rvol = computeRvol(bars[stock.symbol], rvolContext);
+    const withRvol = movers.map((stock) => {
+      const rvol = computeRvol(bars[stock.symbol], rvolContext, {
+        minNoHistoryVolume: criteria.minNoHistoryVolume,
+      });
 
-        return rvol && { ...stock, ...rvol };
-      })
-      .filter((stock) => stock && stock.rvol > criteria.minRvol);
+      return { stock, rvol };
+    });
+
+    // A stock with no volume history on this feed can't have a real RVOL,
+    // but heavy volume today means it's waking up, so it passes (shown as
+    // "New" in the dashboard) instead of being silently dropped.
+    const highRvol = withRvol
+      .filter(({ rvol }) => rvol && (rvol.noHistory || rvol.rvol > criteria.minRvol))
+      .map(({ stock, rvol }) => ({ ...stock, ...rvol }));
 
     stats.rvol = highRvol.length;
+    // Passed RVOL with no volume history (included in stats.rvol).
+    stats.rvolNoHistory = highRvol.filter((stock) => stock.noHistory).length;
+    // Dropped because there was no history and too little volume today.
+    stats.missingRvolHistory = withRvol.filter(({ rvol }) => !rvol).length;
 
     // Stage 3: share float.
     let floatData = new Map();

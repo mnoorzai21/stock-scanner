@@ -122,13 +122,17 @@ function createApp({ service, alpaca, floats, config }) {
         start: context.rangeStart,
         end: context.rangeEnd,
       });
-      const rvol = computeRvol(bars[symbol], context);
+      const rvol = computeRvol(bars[symbol], context, {
+        minNoHistoryVolume: config.criteria.minNoHistoryVolume,
+      });
 
       res.json({
         symbol,
         session: context.session.session,
         elapsedMinutes: context.elapsedMinutes,
-        ...(rvol || { message: "No historical volume for this window." }),
+        ...(rvol || {
+          message: `No volume history in the past ${context.historicalDates.length} days, and less than ${config.criteria.minNoHistoryVolume.toLocaleString("en-US")} shares traded so far this session.`,
+        }),
       });
     } catch (error) {
       sendError(res, error, "Failed to calculate RVOL");
