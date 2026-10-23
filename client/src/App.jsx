@@ -53,15 +53,47 @@ function Funnel({ stats }) {
     ["news", stats.news],
   ].filter(([, count]) => count !== undefined);
 
+  const rvolNotes = [
+    stats.rvolNoHistory > 0 &&
+      `${stats.rvolNoHistory.toLocaleString()} passed RVOL with no volume history (shown as "New")`,
+    stats.missingRvolHistory > 0 &&
+      `${stats.missingRvolHistory.toLocaleString()} skipped: no volume history and too little volume today`,
+  ].filter(Boolean);
+
   return (
-    <ol className="funnel" aria-label="How many stocks passed each filter">
-      {steps.map(([label, count]) => (
-        <li key={label}>
-          <strong>{count.toLocaleString()}</strong> {label}
-        </li>
-      ))}
-    </ol>
+    <>
+      <ol className="funnel" aria-label="How many stocks passed each filter">
+        {steps.map(([label, count]) => (
+          <li key={label}>
+            <strong>{count.toLocaleString()}</strong> {label}
+          </li>
+        ))}
+      </ol>
+      {rvolNotes.length > 0 && (
+        <p className="funnel-note muted">{rvolNotes.join(" · ")}</p>
+      )}
+    </>
   );
+}
+
+function RvolCell({ stock }) {
+  if (stock.noHistory) {
+    return (
+      <span title="No volume on this data feed in the past 20 days. Heavy volume today.">
+        New
+      </span>
+    );
+  }
+
+  if (stock.basis === "session") {
+    return (
+      <span title="No volume in this time window on past days. Compared with their full-session average.">
+        {stock.rvol.toFixed(1)}x*
+      </span>
+    );
+  }
+
+  return `${stock.rvol.toFixed(1)}x`;
 }
 
 function ResultsTable({ stocks }) {
@@ -96,7 +128,9 @@ function ResultsTable({ stocks }) {
               <td data-label="Change" className="gain">
                 +{stock.change.toFixed(1)}%
               </td>
-              <td data-label="RVOL">{stock.rvol.toFixed(1)}x</td>
+              <td data-label="RVOL">
+                <RvolCell stock={stock} />
+              </td>
               <td data-label="Volume">{formatCompact(stock.sessionVolume)}</td>
               <td data-label="Float">{stock.floatMillions.toFixed(1)}M</td>
               <td data-label="News" className="news">

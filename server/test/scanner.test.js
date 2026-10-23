@@ -13,6 +13,7 @@ const criteria = {
   maxPrice: 20,
   minChangePercent: 20,
   minRvol: 5,
+  minNoHistoryVolume: 20_000,
   maxFloat: 20_000_000,
   newsMaxAgeHours: 24,
 };
@@ -92,6 +93,9 @@ function fakeMarket() {
     NOFLOAT: snapshot(6, 4),
     OLDNEWS: snapshot(6, 4),
     NEWSERR: snapshot(6, 4),
+    NEWACTIVE: snapshot(7, 4), // +75%, no volume history, heavy volume today
+    QUIETNEW: snapshot(6, 4), // no volume history, too little volume today
+    SESSIONBASIS: snapshot(6.4, 4), // +60%, past volume only later in the day
   };
 
   // Normal volume: 1,000 shares per 5-minute bar. Today: 10,000 (10x RVOL).
@@ -108,6 +112,14 @@ function fakeMarket() {
     NOFLOAT: barsFor(10000),
     OLDNEWS: barsFor(10000),
     NEWSERR: barsFor(10000),
+    NEWACTIVE: bars(TODAY, REGULAR_OPEN, 6, 10000), // 60,000 shares, no history
+    QUIETNEW: bars(TODAY, REGULAR_OPEN, 6, 100), // 600 shares, no history
+    // Past days only traded in the afternoon (6,000 shares per day), so the
+    // 9:30-10:00 window is empty and the full session is used instead.
+    SESSIONBASIS: [
+      ...history.flatMap((date) => bars(date, 13 * 60, 6, 1000)),
+      ...bars(TODAY, REGULAR_OPEN, 6, 10000),
+    ],
   };
 
   const floatsBySymbol = {
@@ -116,6 +128,9 @@ function fakeMarket() {
     BIGFLOAT: 90_000_000,
     OLDNEWS: 5_000_000,
     NEWSERR: 5_000_000,
+    NEWACTIVE: 4_000_000,
+    QUIETNEW: 4_000_000,
+    SESSIONBASIS: 4_000_000,
   };
 
   const freshNews = (symbol) => [
@@ -169,24 +184,36 @@ test("full scan keeps only stocks that pass all five filters", async () => {
 
   assert.deepEqual(
     report.results.map((stock) => stock.symbol),
-    ["BIGWIN", "WINNER"], // sorted by % change
+    ["BIGWIN", "NEWACTIVE", "SESSIONBASIS", "WINNER"], // sorted by % change
   );
 
-  const winner = report.results[1];
+  const winner = report.results[3];
   assert.equal(winner.change, 50);
   assert.equal(winner.rvol, 10);
   assert.equal(winner.floatMillions, 8);
   assert.equal(winner.headline, "WINNER announces contract");
+  assert.equal(winner.basis, "window");
+
+  const newActive = report.results[1];
+  assert.equal(newActive.noHistory, true);
+  assert.equal(newActive.rvol, null);
+  assert.equal(newActive.sessionVolume, 60000);
+
+  const sessionBasis = report.results[2];
+  assert.equal(sessionBasis.basis, "session");
+  assert.equal(sessionBasis.rvol, 10);
 
   assert.equal(report.session, "regular");
   assert.deepEqual(report.stats, {
-    symbolsScanned: 9,
-    tradedToday: 9,
-    priceAndGain: 7,
-    rvol: 6,
+    symbolsScanned: 12,
+    tradedToday: 12,
+    priceAndGain: 10,
+    rvol: 8,
+    rvolNoHistory: 1,
+    missingRvolHistory: 1,
     missingFloat: 1,
-    float: 4,
-    news: 2,
+    float: 6,
+    news: 4,
   });
   assert.match(report.warnings[0], /News lookup failed for 1/);
 

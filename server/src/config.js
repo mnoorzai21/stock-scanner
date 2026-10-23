@@ -45,6 +45,9 @@ function loadConfig() {
       maxPrice: readNumber("MAX_PRICE", 20),
       minChangePercent: readNumber("MIN_CHANGE_PERCENT", 20),
       minRvol: readNumber("MIN_RVOL", 5),
+      // Shares traded so far this session (on the data feed) needed for a
+      // stock with no volume history to pass the RVOL filter.
+      minNoHistoryVolume: readNumber("MIN_NO_HISTORY_VOLUME", 20_000),
       maxFloat: readNumber("MAX_FLOAT", 20_000_000),
       newsMaxAgeHours: readNumber("NEWS_MAX_AGE_HOURS", 24),
     },

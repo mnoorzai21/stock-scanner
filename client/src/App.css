@@ -180,6 +180,11 @@ main {
   color: var(--text);
 }
 
+.funnel-note {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+}
+
 /* Messages */
 
 .banner {
