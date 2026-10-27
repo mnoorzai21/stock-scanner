@@ -6,6 +6,8 @@ A full-stack momentum scanner for U.S. stocks built with **React, Vite, Node.js 
 
 **[Live Demo](https://mnoorzai21.github.io/stock-scanner/)**
 
+![stock-scanner screenshot](.\client\public\stock-scanner.jpg)
+
 ## Features
 
 - **Five-filter momentum scan** of roughly 10,000 U.S. stocks, run in the background every minute while the dashboard is open.
