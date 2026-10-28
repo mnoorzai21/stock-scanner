@@ -1,6 +1,7 @@
 const { getMarketStatus, toEasternDate } = require("./marketTime");
 const { getRvolContext, computeRvol } = require("./rvol");
 const { summarizeNews } = require("./news");
+const { getFloatWarnings } = require("./float");
 const { mapWithConcurrency } = require("./alpaca");
 
 const CALENDAR_LOOKBACK_DAYS = 45;
@@ -110,7 +111,9 @@ function createScanner({
     const snapshots = await alpaca.getSnapshots(symbols);
 
     const priced = Object.entries(snapshots)
-      .map(([symbol, snapshot]) => evaluateSnapshot(symbol, snapshot, marketDate))
+      .map(([symbol, snapshot]) =>
+        evaluateSnapshot(symbol, snapshot, marketDate),
+      )
       .filter(Boolean);
 
     const movers = priced.filter(
@@ -154,7 +157,9 @@ function createScanner({
     // but heavy volume today means it's waking up, so it passes (shown as
     // "New" in the dashboard) instead of being silently dropped.
     const highRvol = withRvol
-      .filter(({ rvol }) => rvol && (rvol.noHistory || rvol.rvol > criteria.minRvol))
+      .filter(
+        ({ rvol }) => rvol && (rvol.noHistory || rvol.rvol > criteria.minRvol),
+      )
       .map(({ stock, rvol }) => ({ ...stock, ...rvol }));
 
     stats.rvol = highRvol.length;
@@ -172,7 +177,9 @@ function createScanner({
       );
     } else if (highRvol.length > 0) {
       try {
-        floatData = await floats.getFloats(highRvol.map((stock) => stock.symbol));
+        floatData = await floats.getFloats(
+          highRvol.map((stock) => stock.symbol),
+        );
       } catch (error) {
         warnings.push(`Float lookup failed: ${error.message}`);
       }
@@ -183,7 +190,18 @@ function createScanner({
         const data = floatData.get(stock.symbol);
 
         return data
-          ? { ...stock, float: data.float, floatMillions: data.floatMillions }
+          ? {
+              ...stock,
+              float: data.float,
+              floatMillions: data.floatMillions,
+              freeFloatPercent: data.freeFloatPercent,
+              floatEffectiveDate: data.floatEffectiveDate,
+              floatWarnings: getFloatWarnings(data, {
+                minFreeFloatPercent: criteria.minFreeFloatPercent,
+                maxFloatAgeDays: criteria.maxFloatAgeDays,
+                now: startedAt.getTime(),
+              }),
+            }
           : null;
       })
       .filter((stock) => stock && stock.float < criteria.maxFloat);
@@ -193,6 +211,12 @@ function createScanner({
       (stock) => floatData.has(stock.symbol) && !floatData.get(stock.symbol),
     ).length;
     stats.float = lowFloat.length;
+
+    // Passed the float filter but with unreliable float data
+    // (included in stats.float).
+    stats.floatFlagged = lowFloat.filter(
+      (stock) => stock.floatWarnings.length > 0,
+    ).length;
 
     // Stage 4: fresh news catalyst.
     let newsFailures = 0;

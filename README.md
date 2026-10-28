@@ -14,6 +14,7 @@ A full-stack momentum scanner for U.S. stocks built with **React, Vite, Node.js 
 - **Session-aware relative volume (RVOL):** compares volume so far in the current session with the same time window on each of the previous 20 trading days. If that window had no volume on any past day (common for quiet stocks on the IEX feed), it compares with the average full session instead (marked `x*`). A stock with no volume at all in the past 20 days passes when at least `MIN_NO_HISTORY_VOLUME` shares (default 20,000) traded so far this session, and shows as "New". The funnel reports how many stocks were skipped for having no history.
 - **Correct premarket % change:** measured against the previous session's close, even before the day's first regular-hours bar exists.
 - **Float filter** using Massive (formerly Polygon.io), with batched lookups and a 24-hour cache to stay within free-plan rate limits.
+- **Float data quality check:** flags (doesn't hide) stocks whose float data looks unreliable, so a real low-float runner is never missed, and the funnel shows how many were flagged.
 - **News verification:** requires a news article from the last 24 hours that is actually about the stock. Market roundups that only tag it, and "why is it moving" articles, are ignored.
 - **Sound and desktop alerts** at +20% (one beep) and +30% (two beeps), once per stock per day.
 - **Scan funnel** showing how many stocks passed each filter, so an empty result list is easy to understand.
@@ -30,6 +31,8 @@ A stock must meet **all five conditions** to appear. Each threshold can be chang
 | Relative volume | Greater than 5x          | `MIN_RVOL`           |
 | Share float     | Below 20 million shares  | `MAX_FLOAT`          |
 | News            | Article in the last 24 hours | `NEWS_MAX_AGE_HOURS` |
+
+Float data is also **checked for quality**: a stock is flagged with ⚠ (not removed) when Massive reports a free float below `MIN_FREE_FLOAT_PERCENT` (default 10%), when the float data is older than `MAX_FLOAT_AGE_DAYS` (default 90 days), or when either value is missing. Hover the ⚠ to see why.
 
 ## How It Works
 

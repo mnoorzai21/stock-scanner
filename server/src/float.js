@@ -123,4 +123,37 @@ function createFloatProvider({
   return { isConfigured, getFloats, getFloat };
 }
 
-module.exports = { createFloatProvider };
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Reasons a stock's float data may be unreliable. An empty list means it looks fine.
+// The stock is flagged, not excluded, so a real low-float runner is never hidden.
+function getFloatWarnings(
+  data,
+  { minFreeFloatPercent, maxFloatAgeDays, now = Date.now() },
+) {
+  const warnings = [];
+
+  const percent = data.freeFloatPercent;
+
+  if (!Number.isFinite(percent)) {
+    warnings.push("Free float percent is missing");
+  } else if (percent < minFreeFloatPercent) {
+    warnings.push(`Free float is only ${percent}% of shares`);
+  }
+
+  const effectiveTime = Date.parse(data.floatEffectiveDate);
+
+  if (Number.isNaN(effectiveTime)) {
+    warnings.push("Float effective date is missing");
+  } else {
+    const ageDays = Math.floor((now - effectiveTime) / DAY_MS);
+
+    if (ageDays > maxFloatAgeDays) {
+      warnings.push(`Float data is ${ageDays} days old`);
+    }
+  }
+
+  return warnings;
+}
+
+module.exports = { createFloatProvider, getFloatWarnings };

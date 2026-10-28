@@ -49,6 +49,10 @@ function loadConfig() {
       // stock with no volume history to pass the RVOL filter.
       minNoHistoryVolume: readNumber("MIN_NO_HISTORY_VOLUME", 20_000),
       maxFloat: readNumber("MAX_FLOAT", 20_000_000),
+      // Float data is flagged (not excluded) when the free-float percent is
+      // below this, or when Massive's float data is older than this many days.
+      minFreeFloatPercent: readNumber("MIN_FREE_FLOAT_PERCENT", 10),
+      maxFloatAgeDays: readNumber("MAX_FLOAT_AGE_DAYS", 90),
       newsMaxAgeHours: readNumber("NEWS_MAX_AGE_HOURS", 24),
     },
 
