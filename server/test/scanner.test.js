@@ -15,6 +15,8 @@ const criteria = {
   minRvol: 5,
   minNoHistoryVolume: 20_000,
   maxFloat: 20_000_000,
+  minFreeFloatPercent: 10,
+  maxFloatAgeDays: 90,
   newsMaxAgeHours: 24,
 };
 
@@ -166,7 +168,12 @@ function fakeMarket() {
         symbols.map((s) => [
           s,
           floatsBySymbol[s]
-            ? { float: floatsBySymbol[s], floatMillions: floatsBySymbol[s] / 1e6 }
+            ? {
+                float: floatsBySymbol[s],
+                floatMillions: floatsBySymbol[s] / 1e6,
+                freeFloatPercent: 60,
+                floatEffectiveDate: "2026-10-01",
+              }
             : null,
         ]),
       );
@@ -213,6 +220,7 @@ test("full scan keeps only stocks that pass all five filters", async () => {
     missingRvolHistory: 1,
     missingFloat: 1,
     float: 6,
+    floatFlagged: 0,
     news: 4,
   });
   assert.match(report.warnings[0], /News lookup failed for 1/);
