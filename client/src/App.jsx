@@ -58,6 +58,8 @@ function Funnel({ stats }) {
       `${stats.rvolNoHistory.toLocaleString()} passed RVOL with no volume history (shown as "New")`,
     stats.missingRvolHistory > 0 &&
       `${stats.missingRvolHistory.toLocaleString()} skipped: no volume history and too little volume today`,
+    stats.floatFlagged > 0 &&
+      `${stats.floatFlagged.toLocaleString()} passed float with unverified float data (marked ⚠)`,
   ].filter(Boolean);
 
   return (
@@ -96,6 +98,23 @@ function RvolCell({ stock }) {
   return `${stock.rvol.toFixed(1)}x`;
 }
 
+function FloatCell({ stock }) {
+  const float = `${stock.floatMillions.toFixed(1)}M`;
+  const warnings = stock.floatWarnings ?? [];
+
+  if (warnings.length === 0) {
+    return float;
+  }
+
+  return (
+    <span
+      className="float-flag"
+      title={`Float unverified: ${warnings.join(". ")}. Check the float on your broker before trading.`}>
+      {float} ⚠
+    </span>
+  );
+}
+
 function ResultsTable({ stocks }) {
   return (
     <div className="stock-table">
@@ -113,7 +132,9 @@ function ResultsTable({ stocks }) {
         </thead>
         <tbody>
           {stocks.map((stock) => (
-            <tr key={stock.symbol} className={stock.change >= 30 ? "big-mover" : ""}>
+            <tr
+              key={stock.symbol}
+              className={stock.change >= 30 ? "big-mover" : ""}>
               <td data-label="Symbol">
                 <a
                   className="symbol"
@@ -132,9 +153,14 @@ function ResultsTable({ stocks }) {
                 <RvolCell stock={stock} />
               </td>
               <td data-label="Volume">{formatCompact(stock.sessionVolume)}</td>
-              <td data-label="Float">{stock.floatMillions.toFixed(1)}M</td>
+              <td data-label="Float">
+                <FloatCell stock={stock} />
+              </td>
               <td data-label="News" className="news">
-                <a href={stock.newsUrl} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={stock.newsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer">
                   {stock.headline}
                 </a>
                 <span className="muted">
