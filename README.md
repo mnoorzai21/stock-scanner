@@ -34,6 +34,15 @@ A stock must meet **all five conditions** to appear. Each threshold can be chang
 
 Float data is also **checked for quality**: a stock is flagged with ⚠ (not removed) when Massive reports a free float below `MIN_FREE_FLOAT_PERCENT` (default 10%), when the float data is older than `MAX_FLOAT_AGE_DAYS` (default 90 days), or when either value is missing. Hover the ⚠ to see why.
 
+## Tech Stack
+
+- **Frontend:** React 19, Vite, JavaScript, CSS
+- **Backend:** Node.js, Express 5, REST API
+- **Database:** None; scan results and float data are cached in memory
+- **External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
+- **Testing & CI:** Node's built-in test runner (45 tests), ESLint, GitHub Actions on every push and pull request
+- **Hosting:** GitHub Pages (frontend, deployed by GitHub Actions), Render (backend)
+
 ## How It Works
 
 ```
@@ -48,15 +57,6 @@ React dashboard ──polls every 15s──▶ Express API ──▶ cached scan
 ```
 
 The server runs one scan at a time and caches the result, so any number of open browser tabs share it instead of each triggering its own scan. Scanning pauses automatically after 10 minutes with no dashboard open, which avoids wasting API quota.
-
-## Tech Stack
-
-- **Frontend:** React 19, Vite, JavaScript, CSS
-- **Backend:** Node.js, Express 5, REST API
-- **Database:** None; scan results and float data are cached in memory
-- **External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
-- **Testing & CI:** Node's built-in test runner (45 tests), ESLint, GitHub Actions on every push and pull request
-- **Hosting:** GitHub Pages (frontend, deployed by GitHub Actions), Render (backend)
 
 ## Getting Started
 
