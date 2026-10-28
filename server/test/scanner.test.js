@@ -230,6 +230,35 @@ test("full scan keeps only stocks that pass all five filters", async () => {
   assert.equal(calls.floats.length, 1);
 });
 
+test("counts float warnings only among the stocks shown in the results", async () => {
+  const { alpaca, floats } = fakeMarket();
+  const getFloats = floats.getFloats;
+
+  // Give one result (BIGWIN) and one stock that fails the news filter
+  // (OLDNEWS) an unreliable free-float percent.
+  floats.getFloats = async (symbols) => {
+    const data = await getFloats(symbols);
+
+    for (const symbol of ["BIGWIN", "OLDNEWS"]) {
+      data.set(symbol, { ...data.get(symbol), freeFloatPercent: 4 });
+    }
+
+    return data;
+  };
+
+  const report = await createScanner({
+    alpaca,
+    floats,
+    criteria,
+    now: () => NOW,
+  }).scan();
+
+  assert.equal(report.stats.floatFlagged, 1);
+
+  const bigWin = report.results.find((stock) => stock.symbol === "BIGWIN");
+  assert.deepEqual(bigWin.floatWarnings, ["Free float is only 4% of shares"]);
+});
+
 test("warns when the float API key is missing", async () => {
   const { alpaca, floats } = fakeMarket();
   floats.isConfigured = () => false;
