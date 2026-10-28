@@ -212,12 +212,6 @@ function createScanner({
     ).length;
     stats.float = lowFloat.length;
 
-    // Passed the float filter but with unreliable float data
-    // (included in stats.float).
-    stats.floatFlagged = lowFloat.filter(
-      (stock) => stock.floatWarnings.length > 0,
-    ).length;
-
     // Stage 4: fresh news catalyst.
     let newsFailures = 0;
 
@@ -261,6 +255,12 @@ function createScanner({
       .sort((a, b) => b.change - a.change);
 
     stats.news = results.length;
+
+    // Results shown with a ⚠ because their float data looks unreliable
+    // (included in stats.news).
+    stats.floatFlagged = results.filter(
+      (stock) => stock.floatWarnings.length > 0,
+    ).length;
 
     log("Scan complete", { session: session.session, ...stats });
 

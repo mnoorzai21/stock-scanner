@@ -59,7 +59,7 @@ function Funnel({ stats }) {
     stats.missingRvolHistory > 0 &&
       `${stats.missingRvolHistory.toLocaleString()} skipped: no volume history and too little volume today`,
     stats.floatFlagged > 0 &&
-      `${stats.floatFlagged.toLocaleString()} passed float with unverified float data (marked ⚠)`,
+      `${stats.floatFlagged.toLocaleString()} shown with unverified float data (marked ⚠)`,
   ].filter(Boolean);
 
   return (
