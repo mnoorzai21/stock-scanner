@@ -163,4 +163,6 @@ This project is for educational and informational purposes only. It is not finan
 
 **Mohammad Nabi Noorzai**
 
-GitHub: https://github.com/mnoorzai21
+- GitHub: [@mnoorzai21](https://github.com/mnoorzai21)
+- LinkedIn: [Mohammad Nabi Noorzai](https://linkedin.com/in/mnoorzai21)
+- Portfolio: [mnoorzai.vercel.app](https://mnoorzai.vercel.app)
