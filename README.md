@@ -138,7 +138,7 @@ The tests cover market-hours and daylight-saving logic, RVOL windows, premarket 
 
 **Backend:** Render. Set `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` and `MASSIVE_API_KEY` in the Render dashboard and use `npm start` as the start command from the `server` directory. Render's free plan sleeps when idle, so the first request after a break can take about a minute.
 
-## What I learned
+## What I Learned
 - **Data from one provider is not always right.** Massive and TradingView reported different floats for the same stock, so I flagged doubtful float data with ⚠ instead of hiding the stock, so the trader takes a second look before trading. When live testing showed the flagged count included a stock that wasn't on screen, I wrote a regression test and counted only visible results.
 - **Combining free data sources instead of paying for one.** I started with Alpaca for everything, but getting all the data from one provider would have required a paid plan. Instead, I kept Alpaca for prices, volume, and news and added Massive's free plan for share float. Two free sources meant working within each one's rate limits, so I batched the float lookups and cached them for 24 hours.
 
