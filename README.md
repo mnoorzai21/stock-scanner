@@ -1,4 +1,4 @@
-# Stock Scanner — Real-Time Momentum Scanner
+# Stock Scanner: Real-Time Momentum Scanner
 
 [![CI](https://github.com/mnoorzai21/stock-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/mnoorzai21/stock-scanner/actions/workflows/ci.yml)
 
@@ -49,12 +49,14 @@ React dashboard ──polls every 15s──▶ Express API ──▶ cached scan
 
 The server runs one scan at a time and caches the result, so any number of open browser tabs share it instead of each triggering its own scan. Scanning pauses automatically after 10 minutes with no dashboard open, which avoids wasting API quota.
 
-## Technology Stack
+## Tech Stack
 
-**Frontend:** React 19, Vite, JavaScript, CSS
-**Backend:** Node.js, Express 5, REST API, Node's built-in test runner
-**External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
-**Deployment:** GitHub Pages (frontend, via GitHub Actions), Render (backend)
+- **Frontend:** React 19, Vite, JavaScript, CSS
+- **Backend:** Node.js, Express 5, REST API
+- **Database:** None; scan results and float data are cached in memory
+- **External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
+- **Testing & CI:** Node's built-in test runner (45 tests), ESLint, GitHub Actions on every push and pull request
+- **Hosting:** GitHub Pages (frontend, deployed by GitHub Actions), Render (backend)
 
 ## Getting Started
 
@@ -130,11 +132,15 @@ The tests cover market-hours and daylight-saving logic, RVOL windows, premarket 
 | GET    | `/api/test-float/:symbol`   | Float for one symbol                          |
 | GET    | `/api/test-news/:symbol`    | Latest qualifying news for one symbol         |
 
-## Live Deployment
+## Deployment
 
 **Frontend:** https://mnoorzai21.github.io/stock-scanner/ (deployed by GitHub Actions on every push to `main`)
 
 **Backend:** Render. Set `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` and `MASSIVE_API_KEY` in the Render dashboard and use `npm start` as the start command from the `server` directory. Render's free plan sleeps when idle, so the first request after a break can take about a minute.
+
+## What I learned
+- **Data from one provider is not always right.** Massive and TradingView reported different floats for the same stock, so I flagged doubtful float data with ⚠ instead of hiding the stock, so the trader takes a second look before trading. When live testing showed the flagged count included a stock that wasn't on screen, I wrote a regression test and counted only visible results.
+- **Combining free data sources instead of paying for one.** I started with Alpaca for everything, but getting all the data from one provider would have required a paid plan. Instead, I kept Alpaca for prices, volume, and news and added Massive's free plan for share float. Two free sources meant working within each one's rate limits, so I batched the float lookups and cached them for 24 hours.
 
 ## Using It for Live Trading
 
@@ -157,4 +163,6 @@ This project is for educational and informational purposes only. It is not finan
 
 **Mohammad Nabi Noorzai**
 
-GitHub: https://github.com/mnoorzai21
+- GitHub: [@mnoorzai21](https://github.com/mnoorzai21)
+- LinkedIn: [Mohammad Nabi Noorzai](https://linkedin.com/in/mnoorzai21)
+- Portfolio: [mnoorzai.vercel.app](https://mnoorzai.vercel.app)
