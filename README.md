@@ -1,4 +1,4 @@
-# Stock Scanner — Real-Time Momentum Scanner
+# Stock Scanner: Real-Time Momentum Scanner
 
 [![CI](https://github.com/mnoorzai21/stock-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/mnoorzai21/stock-scanner/actions/workflows/ci.yml)
 
@@ -130,7 +130,7 @@ The tests cover market-hours and daylight-saving logic, RVOL windows, premarket 
 | GET    | `/api/test-float/:symbol`   | Float for one symbol                          |
 | GET    | `/api/test-news/:symbol`    | Latest qualifying news for one symbol         |
 
-## Live Deployment
+## Deployment
 
 **Frontend:** https://mnoorzai21.github.io/stock-scanner/ (deployed by GitHub Actions on every push to `main`)
 
