@@ -49,12 +49,14 @@ React dashboard ──polls every 15s──▶ Express API ──▶ cached scan
 
 The server runs one scan at a time and caches the result, so any number of open browser tabs share it instead of each triggering its own scan. Scanning pauses automatically after 10 minutes with no dashboard open, which avoids wasting API quota.
 
-## Technology Stack
+## Tech Stack
 
-**Frontend:** React 19, Vite, JavaScript, CSS
-**Backend:** Node.js, Express 5, REST API, Node's built-in test runner
-**External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
-**Deployment:** GitHub Pages (frontend, via GitHub Actions), Render (backend)
+- **Frontend:** React 19, Vite, JavaScript, CSS
+- **Backend:** Node.js, Express 5, REST API
+- **Database:** None; scan results and float data are cached in memory
+- **External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
+- **Testing & CI:** Node's built-in test runner (45 tests), ESLint, GitHub Actions on every push and pull request
+- **Hosting:** GitHub Pages (frontend, deployed by GitHub Actions), Render (backend)
 
 ## Getting Started
 
