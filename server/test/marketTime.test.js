@@ -23,6 +23,17 @@ test("detects the regular session during standard time", () => {
   assert.equal(getTradingSession(new Date("2026-01-15T14:30:00Z")).session, "regular");
 });
 
+test("treats 8 to 9 PM ET as closed (the daily pause under 23-hour trading)", () => {
+  // October 15, 2026 is EDT (UTC-4), so 8:00 PM ET is 00:00 UTC the next day.
+  assert.equal(
+    getTradingSession(new Date("2026-10-15T23:59:00Z")).session,
+    "afterhours",
+  );
+  assert.equal(getTradingSession(new Date("2026-10-16T00:00:00Z")), null);
+  assert.equal(getTradingSession(new Date("2026-10-16T00:30:00Z")), null);
+  assert.equal(getTradingSession(new Date("2026-10-16T00:59:00Z")), null);
+});
+
 test("converts New York times to UTC across daylight saving", () => {
   assert.equal(
     easternTimeToUtc("2026-10-15", 9 * 60 + 30).toISOString(),
