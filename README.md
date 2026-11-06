@@ -40,7 +40,7 @@ Float data is also **checked for quality**: a stock is flagged with ⚠ (not rem
 - **Backend:** Node.js, Express 5, REST API
 - **Database:** None; scan results and float data are cached in memory
 - **External APIs:** Alpaca (market data, news, trading calendar), Massive (share float)
-- **Testing & CI:** Node's built-in test runner (45 tests), ESLint, GitHub Actions on every push and pull request
+- **Testing & CI:** Node's built-in test runner (46 tests), ESLint, GitHub Actions on every push and pull request
 - **Hosting:** GitHub Pages (frontend, deployed by GitHub Actions), Render (backend)
 
 ## How It Works
